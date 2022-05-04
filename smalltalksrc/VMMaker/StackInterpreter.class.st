@@ -11291,6 +11291,15 @@ StackInterpreter >> primitiveObject: actualReceiver perform: selector withArgume
 	^nil
 ]
 
+{ #category : #primitives }
+StackInterpreter >> primitiveSenderObject [
+	
+	| callerFrameFP senderObject |
+	callerFrameFP := self frameCallerFP: framePointer.
+	senderObject := self frameReceiver: callerFrameFP.
+	self push: senderObject
+]
+
 { #category : #'primitives message counting' }
 StackInterpreter >> primitiveStartProfiling [
 

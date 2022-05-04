@@ -3024,6 +3024,24 @@ VMPrimitiveTest >> testPrimitiveQuoWithNoErrorPopsOperands [
 	self assert: interpreter stackTop equals: (memory integerObjectOf: 42). 
 ]
 
+{ #category : #'tests - primitiveSenderObject' }
+VMPrimitiveTest >> testPrimitiveSenderObject [
+
+	| marker callerFrame |
+	marker := 16rBADF00D.
+
+	"Create the caller frame and the current frame"
+	callerFrame := stackBuilder addNewFrame.
+	callerFrame receiver: marker.
+	stackBuilder addNewFrame.
+	stackBuilder buildStack.
+	
+	interpreter primitiveSenderObject.
+	
+	self deny: interpreter failed.
+	self assert: interpreter stackTop equals: marker
+]
+
 { #category : #'tests - primitiveImmutability' }
 VMPrimitiveTest >> testPrimitiveSetImmutabilityOfImmediateShouldFail [
 
