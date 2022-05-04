@@ -11297,7 +11297,7 @@ StackInterpreter >> primitiveSenderObject [
 	| callerFrameFP senderObject |
 	callerFrameFP := self frameCallerFP: framePointer.
 	senderObject := self frameReceiver: callerFrameFP.
-	self push: senderObject
+	self pop: 1 "receiver" thenPush: senderObject
 ]
 
 { #category : #'primitives message counting' }

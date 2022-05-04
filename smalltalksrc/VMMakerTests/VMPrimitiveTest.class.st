@@ -3042,6 +3042,28 @@ VMPrimitiveTest >> testPrimitiveSenderObject [
 	self assert: interpreter stackTop equals: marker
 ]
 
+{ #category : #'tests - primitiveSenderObject' }
+VMPrimitiveTest >> testPrimitiveSenderObjectDoesNotUnbalanceTheStack [
+
+	| marker callerFrame primitiveReceiver |
+	marker := 16rBADF00D.
+	primitiveReceiver := 16rCAFEBABE.
+
+	"Create the caller frame and the current frame"
+	callerFrame := stackBuilder addNewFrame.
+	stackBuilder addNewFrame.
+	stackBuilder buildStack.
+
+	interpreter push: marker.
+	interpreter push: primitiveReceiver.
+	interpreter primitiveSenderObject.
+	
+	"Pop the result, we dont care for this test. We want the marker"
+	interpreter popStack.
+	
+	self assert: interpreter stackTop equals: marker
+]
+
 { #category : #'tests - primitiveImmutability' }
 VMPrimitiveTest >> testPrimitiveSetImmutabilityOfImmediateShouldFail [
 
