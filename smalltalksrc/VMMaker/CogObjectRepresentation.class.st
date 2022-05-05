@@ -1230,9 +1230,27 @@ CogObjectRepresentation >> genPrimitiveQuo [
 { #category : #'primitive generators' }
 CogObjectRepresentation >> genPrimitiveSenderObject [
 
+	<var: #ifMachineCodeFrame type: #'AbstractInstruction *'>
+	| ifMachineCodeFrame |
+	
+	"Get the caller FP"
 	cogit MoveMw: FoxSavedFP r: FPReg R: ReceiverResultReg.
-	cogit MoveMw: FoxReceiver r: ReceiverResultReg R: ReceiverResultReg.
+	
+	"To access the caller FP receiver, we need to know if it is a machine code or interpreted frame.
+	To know that, we check if the method of the frame is below the start of memory"
+	cogit MoveMw: FoxMethod r: ReceiverResultReg R: TempReg.
+	cogit CmpCw: objectMemory startOfMemory R: TempReg.
+	ifMachineCodeFrame := cogit JumpBelow: 0.
+	
+	"If above, it is a bytecode method, interpreted frame"
+	cogit MoveMw: FoxIFReceiver r: ReceiverResultReg R: ReceiverResultReg.
 	cogit genPrimReturn.
+	
+	"If below, Machine code method and machine code frame"
+	ifMachineCodeFrame jmpTarget: cogit Label.
+	cogit MoveMw: FoxMFReceiver r: ReceiverResultReg R: ReceiverResultReg.
+	cogit genPrimReturn.
+	
 	^ CompletePrimitive
 ]
 
