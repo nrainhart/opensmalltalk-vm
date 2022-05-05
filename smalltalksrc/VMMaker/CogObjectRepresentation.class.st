@@ -1228,6 +1228,15 @@ CogObjectRepresentation >> genPrimitiveQuo [
 ]
 
 { #category : #'primitive generators' }
+CogObjectRepresentation >> genPrimitiveSenderObject [
+
+	cogit MoveMw: FoxSavedFP r: FPReg R: ReceiverResultReg.
+	cogit MoveMw: FoxReceiver r: ReceiverResultReg R: ReceiverResultReg.
+	cogit genPrimReturn.
+	^ CompletePrimitive
+]
+
+{ #category : #'primitive generators' }
 CogObjectRepresentation >> genPrimitiveShallowCopy [
 	"subclasses override if they can"
 	^UnimplementedPrimitive

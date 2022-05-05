@@ -1067,7 +1067,7 @@ Cogit class >> initializePrimitiveTable [
 		(79 genPrimitiveNewMethod	2)
 
 		"Control Primitives (80-89)"
-		"(80 primitiveFail)"							"Blue Book: primitiveBlockCopy"
+		(80 genPrimitiveSenderObject 0)							"Blue Book: primitiveBlockCopy"
 		"(81 primitiveFail)"							"Blue Book: primitiveValue"
 		"(82 primitiveFail)"							"Blue Book: primitiveValueWithArgs"
 		(83 genPrimitivePerform)
