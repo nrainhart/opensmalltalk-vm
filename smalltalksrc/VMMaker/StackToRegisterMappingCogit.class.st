@@ -1501,6 +1501,54 @@ StackToRegisterMappingCogit >> genCmpArgIsConstant: argIsConstant rcvrIsConstant
 			ifFalse: [ self CmpR: argReg R: rcvrReg ] ].
 ]
 
+{ #category : #'primitive generators' }
+StackToRegisterMappingCogit >> genConvertDataFormat: formatReg numSlots: slotsRegister intoBytes: destReg [
+	| jumpIsBytes jumpIsShorts jumpIsLongs jumpLongLongsDone jumpBytesDone jumpShortsDone jumpLongsDone |
+	slotsRegister ~= destReg ifTrue: [
+		self MoveR: slotsRegister R: destReg.
+	].
+
+	self CmpCq: objectMemory firstByteFormat R: formatReg.
+	jumpIsBytes := self JumpAboveOrEqual: 0.
+	
+	self CmpCq: objectMemory firstShortFormat R: formatReg.
+	jumpIsShorts := self JumpAboveOrEqual: 0.
+	
+	self CmpCq: objectMemory firstLongFormat R: formatReg.
+	jumpIsLongs := self JumpAboveOrEqual: 0.
+
+	"Long long"
+	self LogicalShiftLeftCq: objectMemory shiftForWord R: destReg.
+	jumpLongLongsDone := self Jump: 0.
+	
+	"Bytes"
+	jumpIsBytes jmpTarget:
+		(self LogicalShiftLeftCq: objectMemory shiftForWord R: destReg).
+		self AndCq: objectMemory wordSize - 1 R: formatReg.
+		self SubR: formatReg R: destReg.
+	jumpBytesDone := self Jump: 0.
+	
+	jumpIsShorts jmpTarget:
+		(self LogicalShiftLeftCq: objectMemory shiftForWord - 1 R: destReg).
+		self AndCq: (objectMemory wordSize >> 1) - 1 R: formatReg.
+		self SubR: formatReg R: destReg.
+		self LogicalShiftLeftCq: 1 R: destReg.
+	jumpShortsDone := self Jump: 0.
+	
+	jumpIsLongs jmpTarget:
+		(self LogicalShiftLeftCq: objectMemory shiftForWord - 2 R: destReg).
+		self AndCq: (objectMemory wordSize >> 2) - 1 R: formatReg.
+		self SubR: formatReg R: destReg.
+		self LogicalShiftLeftCq: 2 R: destReg.
+	jumpLongsDone := self Jump: 0.
+	
+	jumpLongLongsDone jmpTarget:
+	(jumpLongsDone jmpTarget:
+	(jumpShortsDone jmpTarget:
+	(jumpBytesDone jmpTarget:
+		self Label))).
+]
+
 { #category : #'bytecode generators' }
 StackToRegisterMappingCogit >> genExtPushFullClosureBytecode [
 	"Full Block creation compilation. The block's actual code will be compiled separatedly."
@@ -1758,6 +1806,57 @@ StackToRegisterMappingCogit >> genGenericStorePop: popBoolean slotIndex: slotInd
 		needsStoreCheck: needsStoreCheck
 ]
 
+{ #category : #'compile abstract instructions' }
+StackToRegisterMappingCogit >> genGetFormatOf: sourceReg into: destReg leastSignificantHalfOfBaseHeaderIntoScratch: scratchRegOrNone [
+	"Get the format of the object in sourceReg into destReg.  If scratchRegOrNone
+	 is not NoReg, load at least the least significant 32-bits (64-bits in 64-bits) of the
+	 header word, which contains the format, into scratchRegOrNone."
+	scratchRegOrNone = NoReg
+		ifTrue:
+			[self flag: #endianness.
+			 self MoveMb: 3 r: sourceReg R: destReg]
+		ifFalse:
+			[self MoveMw: 0 r: sourceReg R: destReg.
+			 self MoveR: destReg R: scratchRegOrNone. "destReg := (at least) least significant half of self baseHeader: receiver"
+			 self LogicalShiftRightCq: objectMemory formatShift R: destReg].
+	self AndCq: objectMemory formatMask R: destReg.	"formatReg := self formatOfHeader: destReg"
+	^0
+]
+
+{ #category : #'compile abstract instructions' }
+StackToRegisterMappingCogit >> genGetNumSlotsOf: srcReg into: destReg [
+	"Get the size in word-sized slots of the object in srcReg into destReg.
+	 srcReg may equal destReg."
+	<var: #jmp type: #'AbstractInstruction *'>
+	| jmp |
+	self assert: srcReg ~= destReg.
+	self genGetRawSlotSizeOfNonImm: srcReg into: destReg.
+	self CmpCq: objectMemory numSlotsMask R: destReg.
+	jmp := self JumpLess: 0.
+	self genGetOverflowSlotsOf: srcReg into: destReg.
+	jmp jmpTarget: self Label.
+	^0
+]
+
+{ #category : #'compile abstract instructions' }
+StackToRegisterMappingCogit >> genGetOverflowSlotsOf: srcReg into: destReg [
+	self
+		MoveMw: objectMemory baseHeaderSize negated r: srcReg R: destReg;
+		LogicalShiftLeftCq: 8 R: destReg;
+		LogicalShiftRightCq: 8 R: destReg.
+	^0
+]
+
+{ #category : #'compile abstract instructions' }
+StackToRegisterMappingCogit >> genGetRawSlotSizeOfNonImm: sourceReg into: destReg [
+	"The raw numSlots field is the most significant byte of the 64-bit header word.
+	 MoveMbrR zero-extends."
+	self backEnd byteReadsZeroExtend ifFalse:
+		[self MoveCq: 0 R: destReg].
+	self MoveMb: 7 r: sourceReg R: destReg.
+	^0
+]
+
 { #category : #'bytecode generator support' }
 StackToRegisterMappingCogit >> genIdenticalNoBranchArgIsConstant: argIsConstant rcvrIsConstant: rcvrIsConstant argReg: argReg rcvrReg: rcvrRegOrNone orNotIf: orNot [
 	"Generates the machine code for #== in the case where the instruction is not followed by a branch"
@@ -1857,6 +1956,23 @@ StackToRegisterMappingCogit >> genJumpIf: boolean to: targetBytecodePC [
 	self genCallMustBeBooleanFor: boolean.
 	ok jmpTarget: (self annotateBytecode: self Label).
 	^0
+]
+
+{ #category : #'compile abstract instructions' }
+StackToRegisterMappingCogit >> genJumpImmediate: aRegister [
+	"Generate a compare and branch to test if aRegister contains an immediate.
+	 Answer the jump."
+	<returnTypeC: #'AbstractInstruction *'>
+	self TstCq: objectMemory tagMask R: aRegister.
+	^self JumpNonZero: 0
+]
+
+{ #category : #'compile abstract instructions' }
+StackToRegisterMappingCogit >> genJumpNotSmallInteger: aRegister [
+	<returnTypeC: #'AbstractInstruction *'>
+	^ self
+		  TstCq: 1 R: aRegister;
+		  JumpZero: 0
 ]
 
 { #category : #'bytecode generator support' }
@@ -2174,36 +2290,78 @@ StackToRegisterMappingCogit >> genPushFloat32ArrayToRegister [
 { #category : #'mapped inline primitive generators - vectorial' }
 StackToRegisterMappingCogit >> genPushFloat64ArrayToRegister [
 
-	| arrayReg indexReg vectorReg |
-	
+	| arrayReg indexReg vectorReg jumpImmediate jumpBadIndex formatReg nSlotsOrBytesReg jumpIsPointers accessedElementByteSize jumpSmaller jumpOutOfBounds secondIndexReg |
 	objectMemory wordSize = 4 ifTrue: [ ^ EncounteredUnknownBytecode ].
 
 	arrayReg := self allocateRegForStackEntryAt: 0 notConflictingWith: 0.
-	indexReg := self allocateRegForStackEntryAt: 1 notConflictingWith: (self registerMaskFor: arrayReg).
-	
+	indexReg := self
+		            allocateRegForStackEntryAt: 1
+		            notConflictingWith: (self registerMaskFor: arrayReg).
+
 	self ssTop moveToReg: arrayReg.
 	self ssPop: 1.
-	
+
 	self ssTop moveToReg: indexReg.
 	self ssPop: 1.
-	
+
+	"Array is not immediate"
+	jumpImmediate := self genJumpImmediate: arrayReg.
+	"Index is valid integer"
+	jumpBadIndex := self genJumpNotSmallInteger: indexReg.
+	"Array has sixty four bit indexable format"
+	formatReg := self allocateRegNotConflictingWith: 0. "TODO handle conflicts"
+	nSlotsOrBytesReg := self allocateRegNotConflictingWith: 0. "TODO handle conflicts"
+	self
+		genGetFormatOf: arrayReg
+		into: formatReg
+		leastSignificantHalfOfBaseHeaderIntoScratch: nSlotsOrBytesReg. "TODO this result is not used, pass different register?"
+	self genGetNumSlotsOf: arrayReg into: nSlotsOrBytesReg.
+	self CmpCq: objectMemory sixtyFourBitIndexableFormat R: formatReg.
+	jumpIsPointers := self JumpBelow: 0.
+	"First index is in bounds"
+	accessedElementByteSize := 8.
+	self
+		genConvertDataFormat: formatReg
+		numSlots: nSlotsOrBytesReg
+		intoBytes: nSlotsOrBytesReg.
+	self CmpCq: accessedElementByteSize R: nSlotsOrBytesReg.
+	jumpSmaller := self JumpBelow: 0.
+	"Subtract the accessed element count to make the register into an upper bound."
+	accessedElementByteSize > 1 ifTrue: [ 
+		self SubCq: accessedElementByteSize - 1 R: nSlotsOrBytesReg ].
+	self CmpR: nSlotsOrBytesReg R: indexReg.
+	jumpOutOfBounds := self JumpAboveOrEqual: 0.
+	"Second index is in bounds"
+	secondIndexReg := self allocateRegNotConflictingWith: 0. "TODO handle conflicts".
+	self AddCq: 1 R: arrayReg.
+	self CmpR: nSlotsOrBytesReg R: secondIndexReg.
+	jumpOutOfBounds := self JumpAboveOrEqual: 0.
+
 	self AddCq: objectMemory baseHeaderSize R: arrayReg.
 
 	"The index is a SmallInteger, so it is shifted left 3 and plus 1. So, as we need to untag it and then shift it 3 (for getting number of bytes from number of elements), we just substract 1. 
 	Only valid in 64bits Lanes and 64bits machine."
 
-	self assert: (objectMemory wordSize = 8).
-	
+	self assert: objectMemory wordSize = 8.
+
 	self SubCq: 1 R: indexReg.
 	self AddR: indexReg R: arrayReg.
-	
+
 	vectorReg := self allocateVectorRegNotConflictingWith: 0.
 	self ssPushVectorRegister: vectorReg.
-	
-	self Ld1S: 64 Vr: vectorReg R: arrayReg Mw: 0.
-	
+
+	self
+		Ld1S: 64
+		Vr: vectorReg
+		R: arrayReg
+		Mw: 0.
+
+	jumpImmediate jmpTarget:
+		(jumpBadIndex jmpTarget: (jumpIsPointers jmpTarget:
+				  (jumpSmaller jmpTarget: (jumpOutOfBounds jmpTarget: self Label)))).
+
 	"Returns 0 if worked"
-	^0
+	^ 0
 ]
 
 { #category : #'bytecode generator support' }
