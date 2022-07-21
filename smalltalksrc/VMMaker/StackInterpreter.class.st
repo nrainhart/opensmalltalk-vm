@@ -4782,115 +4782,163 @@ StackInterpreter >> commonSendOrdinary [
 ]
 
 { #category : #'indexing primitive support' }
-StackInterpreter >> commonVariable: rcvr at: index cacheIndex: atIx [ 
-	"This code assumes the receiver has been identified at location atIx in the atCache."
-	| stSize fmt fixedFields result |
-	<inline: true>
-	stSize := atCache at: atIx+AtCacheSize.
-	((self oop: index isGreaterThanOrEqualTo: 1)
-	 and: [self oop: index isLessThanOrEqualTo: stSize]) ifTrue:
-		[fmt := atCache at: atIx+AtCacheFmt.
-		 fmt <= objectMemory weakArrayFormat ifTrue:
-			[self assert: (objectMemory isContextNonImm: rcvr) not.
-			 fixedFields := atCache at: atIx+AtCacheFixedFields.
-			 ^objectMemory fetchPointer: index + fixedFields - 1 ofObject: rcvr].
-		 fmt < objectMemory firstByteFormat ifTrue: "64, 32, & 16 bits"
-			[objectMemory hasSpurMemoryManagerAPI ifTrue:
-				[fmt >= objectMemory firstShortFormat ifTrue:
-					[^objectMemory integerObjectOf:
-						(objectMemory fetchUnsignedShort16: index - 1 ofObject: rcvr)].
-				 fmt = objectMemory sixtyFourBitIndexableFormat ifTrue:
-					[^self positive64BitIntegerFor:
-						(objectMemory fetchLong64: index - 1 ofObject: rcvr)]].
-			 result := objectMemory fetchLong32: index - 1 ofObject: rcvr.
-			 ^self positive32BitIntegerFor: result].
-		 fmt >= objectMemory firstStringyFakeFormat  "Note fmt >= firstStringyFormat is an artificial flag for strings"
-			ifTrue: "String"
-				["Spur supports the String at:[put:] primitives on WideString and DoubleByteString"
-				 result := (objectMemory hasSpurMemoryManagerAPI
-							and: [fmt < (objectMemory firstByteFormat + objectMemory firstStringyFakeFormat)])
-								ifTrue:
-									[fmt < (objectMemory firstShortFormat + objectMemory firstStringyFakeFormat)
-										ifTrue: [objectMemory fetchLong32: index - 1 ofObject: rcvr]
-										ifFalse: [objectMemory fetchUnsignedShort16: index - 1 ofObject: rcvr]]
-								ifFalse: [objectMemory fetchByte: index - 1 ofObject: rcvr].
-				^self characterForAscii: result]
-			ifFalse:
-				[(fmt < objectMemory firstCompiledMethodFormat "ByteArray"
-				  or: [index >= (self firstByteIndexOfMethod: rcvr) "CompiledMethod"]) ifTrue:
-					[^objectMemory integerObjectOf: (objectMemory fetchByte: index - 1 ofObject: rcvr)]]].
+StackInterpreter >> commonVariable: rcvr at: index cacheIndex: atIx [
 
-	^self primitiveFailFor: ((objectMemory isIndexable: rcvr)
-								ifFalse: [PrimErrBadReceiver]
-								ifTrue: [PrimErrBadIndex])
+	"This code assumes the receiver has been identified at location atIx in the atCache."
+
+	<inline: true>
+	| stSize fmt fixedFields result min |
+	stSize := atCache at: atIx + AtCacheSize.
+	min := 1.
+	(self oop: index isInClosedRangeFrom: min to: stSize) ifTrue: [ 
+		fmt := atCache at: atIx + AtCacheFmt.
+		fmt <= objectMemory weakArrayFormat ifTrue: [ 
+			self assert: (objectMemory isContextNonImm: rcvr) not.
+			fixedFields := atCache at: atIx + AtCacheFixedFields.
+			^ objectMemory fetchPointer: index + fixedFields - 1 ofObject: rcvr ].
+		fmt < objectMemory firstByteFormat ifTrue: [ "64, 32, & 16 bits"
+			objectMemory hasSpurMemoryManagerAPI ifTrue: [ 
+				fmt >= objectMemory firstShortFormat ifTrue: [ 
+					^ objectMemory integerObjectOf:
+						  (objectMemory fetchUnsignedShort16: index - 1 ofObject: rcvr) ].
+				fmt = objectMemory sixtyFourBitIndexableFormat ifTrue: [ 
+					^ self positive64BitIntegerFor:
+						  (objectMemory fetchLong64: index - 1 ofObject: rcvr) ] ].
+			result := objectMemory fetchLong32: index - 1 ofObject: rcvr.
+			^ self positive32BitIntegerFor: result ].
+		fmt >= objectMemory firstStringyFakeFormat
+			ifTrue: [ "Spur supports the String at:[put:] primitives on WideString and DoubleByteString""String"
+				result := (objectMemory hasSpurMemoryManagerAPI and: [ 
+					           fmt
+					           <
+					           (objectMemory firstByteFormat
+					            + objectMemory firstStringyFakeFormat) ])
+					          ifTrue: [ 
+						          fmt
+						          <
+						          (objectMemory firstShortFormat
+						           + objectMemory firstStringyFakeFormat)
+							          ifTrue: [ 
+							          objectMemory fetchLong32: index - 1 ofObject: rcvr ]
+							          ifFalse: [ 
+							          objectMemory
+								          fetchUnsignedShort16: index - 1
+								          ofObject: rcvr ] ]
+					          ifFalse: [ 
+					          objectMemory fetchByte: index - 1 ofObject: rcvr ].
+				^ self characterForAscii: result ]
+			ifFalse: [ 
+				(fmt < objectMemory firstCompiledMethodFormat or: [ 
+					 index >= (self firstByteIndexOfMethod: rcvr) "CompiledMethod" ]) 
+					ifTrue: [ 
+						^ objectMemory integerObjectOf:
+							  (objectMemory fetchByte: index - 1 ofObject: rcvr) ] "ByteArray" ] "Note fmt >= firstStringyFormat is an artificial flag for strings" ].
+
+	^ self primitiveFailFor: ((objectMemory isIndexable: rcvr)
+			   ifFalse: [ PrimErrBadReceiver ]
+			   ifTrue: [ PrimErrBadIndex ])
 ]
 
 { #category : #'indexing primitive support' }
 StackInterpreter >> commonVariable: rcvr at: index put: value cacheIndex: atIx [
-	"This code assumes the receiver has been identified at location atIx in the atCache."
-	<returnTypeC: #void>
-	| stSize fmt fixedFields valToPut isCharacter |
-	<inline: true>
-	stSize := atCache at: atIx+AtCacheSize.
-	((self oop: index isGreaterThanOrEqualTo: 1)
-	  and: [self oop: index isLessThanOrEqualTo: stSize]) ifTrue:
-		[fmt := atCache at: atIx+AtCacheFmt.
-		fmt <= objectMemory weakArrayFormat ifTrue:
-			[self assert: (objectMemory isContextNonImm: rcvr) not.
-			 fixedFields := atCache at: atIx+AtCacheFixedFields.
-			 ^objectMemory storePointer: index + fixedFields - 1 ofObject: rcvr withValue: value].
-		fmt < objectMemory firstByteFormat ifTrue:  "64, 32, & 16 bits"
-			[objectMemory hasSpurMemoryManagerAPI ifTrue:
-				[fmt >= objectMemory firstShortFormat ifTrue:
-					[valToPut := (objectMemory isIntegerObject: value)
-									ifTrue: [objectMemory integerValueOf: value]
-									ifFalse: [-1].
-					(valToPut >= 0 and: [valToPut <= 65535]) ifFalse: [^self primitiveFailFor: PrimErrBadArgument].
-					^objectMemory storeShort16: index - 1 ofObject: rcvr withValue: valToPut].
-				 fmt = objectMemory sixtyFourBitIndexableFormat ifTrue:
-					[| val64ToPut |
-					 val64ToPut := self positive64BitValueOf: value.
-					 self successful ifTrue:
-						[^objectMemory storeLong64: index - 1 ofObject: rcvr withValue: val64ToPut].
-					 ^self primitiveFailFor: PrimErrBadArgument]].
-			 valToPut := self positive32BitValueOf: value.
-			 self successful ifTrue:
-				[^objectMemory storeLong32: index - 1 ofObject: rcvr withValue: valToPut].
-			 ^self primitiveFailFor: PrimErrBadArgument].
-		fmt >= objectMemory firstStringyFakeFormat  "Note fmt >= firstStringyFormat is an artificial flag for strings"
-			ifTrue:
-				[isCharacter := objectMemory isCharacterObject: value.
-				 isCharacter ifFalse:
-					[^self primitiveFailFor: PrimErrBadArgument].
-				 objectMemory hasSpurMemoryManagerAPI
-					ifTrue: [valToPut := objectMemory characterValueOf: value]
-					ifFalse:
-						[valToPut := objectMemory fetchPointer: CharacterValueIndex ofObject: value.
-						 valToPut := (objectMemory isIntegerObject: valToPut)
-										ifTrue: [objectMemory integerValueOf: valToPut]
-										ifFalse: [-1]].
-				 objectMemory hasSpurMemoryManagerAPI ifTrue:
-				 	[fmt < (objectMemory firstByteFormat + objectMemory firstStringyFakeFormat) ifTrue:
-						[fmt < (objectMemory firstShortFormat + objectMemory firstStringyFakeFormat)
-							ifTrue:
-								[self assert: fmt ~= (objectMemory sixtyFourBitIndexableFormat + objectMemory firstStringyFakeFormat).
-								 ^objectMemory storeLong32: index - 1 ofObject: rcvr withValue: valToPut]
-							ifFalse:
-								[(valToPut >= 0 and: [valToPut <= 65535]) ifFalse: [^self primitiveFailFor: PrimErrBadArgument].
-								 ^objectMemory storeShort16: index - 1 ofObject: rcvr withValue: valToPut]]]]
-			ifFalse:
-				[(fmt >= objectMemory firstCompiledMethodFormat
-				  and: [index < (self firstByteIndexOfMethod: rcvr)]) ifTrue:
-					[^self primitiveFailFor: PrimErrBadIndex].
-				valToPut := (objectMemory isIntegerObject: value)
-								ifTrue: [objectMemory integerValueOf: value]
-								ifFalse: [-1]].
-		(valToPut >= 0 and: [valToPut <= 255]) ifFalse: [^self primitiveFailFor: PrimErrBadArgument].
-		^objectMemory storeByte: index - 1 ofObject: rcvr withValue: valToPut].
 
-	^self primitiveFailFor: ((objectMemory isIndexable: rcvr)
-								ifFalse: [PrimErrBadReceiver]
-								ifTrue: [PrimErrBadIndex])
+	"This code assumes the receiver has been identified at location atIx in the atCache."
+
+	<returnTypeC: #void>
+	<inline: true>
+	| stSize fmt fixedFields valToPut isCharacter |
+	stSize := atCache at: atIx + AtCacheSize.
+	(self oop: index isInClosedRangeFrom: 1 to: stSize) ifTrue: [ 
+		fmt := atCache at: atIx + AtCacheFmt.
+		fmt <= objectMemory weakArrayFormat ifTrue: [ 
+			self assert: (objectMemory isContextNonImm: rcvr) not.
+			fixedFields := atCache at: atIx + AtCacheFixedFields.
+			^ objectMemory
+				  storePointer: index + fixedFields - 1
+				  ofObject: rcvr
+				  withValue: value ].
+		fmt < objectMemory firstByteFormat ifTrue: [ "64, 32, & 16 bits"
+			objectMemory hasSpurMemoryManagerAPI ifTrue: [ 
+				fmt >= objectMemory firstShortFormat ifTrue: [ 
+					valToPut := (objectMemory isIntegerObject: value)
+						            ifTrue: [ objectMemory integerValueOf: value ]
+						            ifFalse: [ -1 ].
+					(valToPut >= 0 and: [ valToPut <= 65535 ]) ifFalse: [ 
+						^ self primitiveFailFor: PrimErrBadArgument ].
+					^ objectMemory
+						  storeShort16: index - 1
+						  ofObject: rcvr
+						  withValue: valToPut ].
+				fmt = objectMemory sixtyFourBitIndexableFormat ifTrue: [ 
+					| val64ToPut |
+					val64ToPut := self positive64BitValueOf: value.
+					self successful ifTrue: [ 
+						^ objectMemory
+							  storeLong64: index - 1
+							  ofObject: rcvr
+							  withValue: val64ToPut ].
+					^ self primitiveFailFor: PrimErrBadArgument ] ].
+			valToPut := self positive32BitValueOf: value.
+			self successful ifTrue: [ 
+				^ objectMemory
+					  storeLong32: index - 1
+					  ofObject: rcvr
+					  withValue: valToPut ].
+			^ self primitiveFailFor: PrimErrBadArgument ].
+		fmt >= objectMemory firstStringyFakeFormat
+			ifTrue: [ 
+				isCharacter := objectMemory isCharacterObject: value.
+				isCharacter ifFalse: [ 
+					^ self primitiveFailFor: PrimErrBadArgument ].
+				objectMemory hasSpurMemoryManagerAPI
+					ifTrue: [ valToPut := objectMemory characterValueOf: value ]
+					ifFalse: [ 
+						valToPut := objectMemory
+							            fetchPointer: CharacterValueIndex
+							            ofObject: value.
+						valToPut := (objectMemory isIntegerObject: valToPut)
+							            ifTrue: [ objectMemory integerValueOf: valToPut ]
+							            ifFalse: [ -1 ] ].
+				objectMemory hasSpurMemoryManagerAPI ifTrue: [ 
+					fmt
+					<
+					(objectMemory firstByteFormat
+					 + objectMemory firstStringyFakeFormat) ifTrue: [ 
+						fmt
+						<
+						(objectMemory firstShortFormat
+						 + objectMemory firstStringyFakeFormat)
+							ifTrue: [ 
+								self assert: fmt ~= (objectMemory sixtyFourBitIndexableFormat
+									 + objectMemory firstStringyFakeFormat).
+								^ objectMemory
+									  storeLong32: index - 1
+									  ofObject: rcvr
+									  withValue: valToPut ]
+							ifFalse: [ 
+								(valToPut >= 0 and: [ valToPut <= 65535 ]) ifFalse: [ 
+									^ self primitiveFailFor: PrimErrBadArgument ].
+								^ objectMemory
+									  storeShort16: index - 1
+									  ofObject: rcvr
+									  withValue: valToPut ] ] ] ]
+			ifFalse: [ 
+				(fmt >= objectMemory firstCompiledMethodFormat and: [ 
+					 index < (self firstByteIndexOfMethod: rcvr) ]) ifTrue: [ 
+					^ self primitiveFailFor: PrimErrBadIndex ].
+				valToPut := (objectMemory isIntegerObject: value)
+					            ifTrue: [ objectMemory integerValueOf: value ]
+					            ifFalse: [ -1 ] ]. "Note fmt >= firstStringyFormat is an artificial flag for strings"
+		(valToPut >= 0 and: [ valToPut <= 255 ]) ifFalse: [ 
+			^ self primitiveFailFor: PrimErrBadArgument ].
+		^ objectMemory
+			  storeByte: index - 1
+			  ofObject: rcvr
+			  withValue: valToPut ].
+
+	^ self primitiveFailFor: ((objectMemory isIndexable: rcvr)
+			   ifFalse: [ PrimErrBadReceiver ]
+			   ifTrue: [ PrimErrBadIndex ])
 ]
 
 { #category : #initialization }
@@ -8532,6 +8580,26 @@ StackInterpreter >> isFrame: aFrame onPage: aPage [
 	^false
 ]
 
+{ #category : #testing }
+StackInterpreter >> isIndex: anIndex inArray: anArray [
+	| hdr fmt totalLength fixedFields stSize |
+	hdr := objectMemory baseHeader: anArray.
+	fmt := objectMemory formatOfHeader: hdr.
+	totalLength := objectMemory lengthOf: anArray format: fmt.
+	fixedFields := objectMemory
+		               fixedFieldsOf: anArray
+		               format: fmt
+		               length: totalLength.
+	stSize := totalLength - fixedFields.
+	^ self
+		 oop: anIndex
+		 isInClosedRangeFrom:
+		 (objectMemory
+			  firstValidIndexOfIndexableObject: anArray
+			  withFormat: fmt)
+		 to: stSize
+]
+
 { #category : #'internal interpreter access' }
 StackInterpreter >> isKindOfInteger: oop [
 	"Answer true if the oop is kind of Integer (Small or Large)."
@@ -10944,6 +11012,14 @@ StackInterpreter >> okayInterpreterObjects [
 	self okayStackZone.
 ]
 
+{ #category : #'indexing primitive support' }
+StackInterpreter >> oop: anOop isInClosedRangeFrom: minOop to: maxOop [
+
+	<inline: true>
+	^ (self oop: anOop isGreaterThanOrEqualTo: minOop) and: [ 
+		  self oop: anOop isLessThanOrEqualTo: maxOop ]
+]
+
 { #category : #'simulation support' }
 StackInterpreter >> openImageFileNamed: fileName [
 	"Attempt to open fileName or fileName, '.image'"
@@ -12800,9 +12876,15 @@ StackInterpreter >> pushFloat32ArrayToRegisterBytecode [
 { #category : #'simd bytecodes' }
 StackInterpreter >> pushFloat64ArrayToRegisterBytecode [
 
-	| array index reg |
+	| array index reg lastRegisterIndex |
 	array := self stackValue: 0.
 	index := objectMemory integerValueOf: (self stackValue: 1).
+	lastRegisterIndex := 1.
+	((objectMemory isIntegerValue: (self stackValue: 1)) and: [ 
+		 (objectMemory isSixtyFourBitIndexableOop: array) and: [ 
+			 (self isIndex: index + 1 inArray: array) and: [ 
+				 self isIndex: index + 1 + lastRegisterIndex inArray: array ] ] ]) 
+		ifFalse: [ 1 halt "Special send to receiver?" ].
 
 	reg := self eeInstantiateFloat64Register.
 
@@ -14639,48 +14721,77 @@ StackInterpreter >> spurPostBecomeAction: theBecomeEffectsFlags [
 
 { #category : #'indexing primitive support' }
 StackInterpreter >> stObject: array at: index [
+
 	"Return what ST would return for <obj> at: index."
 
-	| hdr fmt totalLength fixedFields stSize |
 	<inline: true>
+	| hdr fmt totalLength fixedFields stSize |
 	hdr := objectMemory baseHeader: array.
 	fmt := objectMemory formatOfHeader: hdr.
 	totalLength := objectMemory lengthOf: array format: fmt.
-	fixedFields := objectMemory fixedFieldsOf: array format: fmt length: totalLength.
-	(fmt = objectMemory indexablePointersFormat
-	 and: [objectMemory isContextHeader: hdr])
-		ifTrue:
-			[stSize := self stackPointerForMaybeMarriedContext: array.
-			((self oop: index isGreaterThanOrEqualTo: 1)
-			 and: [(self oop: index isLessThanOrEqualTo: stSize)
-			 and: [self isStillMarriedContext: array]]) ifTrue:
-				[^self noInlineTemporary: index - 1 in: (self frameOfMarriedContext: array)]]
-		ifFalse: [stSize := totalLength - fixedFields].
-	((self oop: index isGreaterThanOrEqualTo: (objectMemory firstValidIndexOfIndexableObject: array withFormat: fmt))
-	 and: [self oop: index isLessThanOrEqualTo: stSize]) ifTrue:
-		[^self subscript: array with: (index + fixedFields) format: fmt].
-	self primitiveFailFor: (fmt <= 1 ifTrue: [PrimErrBadReceiver] ifFalse: [PrimErrBadIndex]).
-	^0
+	fixedFields := objectMemory
+		               fixedFieldsOf: array
+		               format: fmt
+		               length: totalLength.
+	(fmt = objectMemory indexablePointersFormat and: [ 
+		 objectMemory isContextHeader: hdr ])
+		ifTrue: [ 
+			stSize := self stackPointerForMaybeMarriedContext: array.
+			((self oop: index isInClosedRangeFrom: 1 to: stSize) and: [ 
+					 self isStillMarriedContext: array ]) ifTrue: [ 
+				^ self
+					  noInlineTemporary: index - 1
+					  in: (self frameOfMarriedContext: array) ] ]
+		ifFalse: [ stSize := totalLength - fixedFields ].
+	(self
+		 oop: index
+		 isInClosedRangeFrom:
+		 (objectMemory
+			  firstValidIndexOfIndexableObject: array
+			  withFormat: fmt)
+		 to: stSize) ifTrue: [ 
+		^ self subscript: array with: index + fixedFields format: fmt ].
+	self primitiveFailFor: (fmt <= 1
+			 ifTrue: [ PrimErrBadReceiver ]
+			 ifFalse: [ PrimErrBadIndex ]).
+	^ 0
 ]
 
 { #category : #'indexing primitive support' }
 StackInterpreter >> stObject: array at: index put: value [
+
 	"Do what ST would return for <obj> at: index put: value."
-	| hdr fmt totalLength fixedFields stSize |
+
 	<inline: true>
+	| hdr fmt totalLength fixedFields stSize |
 	hdr := objectMemory baseHeader: array.
-	(objectMemory isContextHeader: hdr) ifTrue:[
-		"we have another primitive (contextAt:Put: for contexts"
-		^self primitiveFailFor: PrimErrBadReceiver].
+	(objectMemory isContextHeader: hdr) ifTrue: [ "we have another primitive (contextAt:Put: for contexts" 
+		^ self primitiveFailFor: PrimErrBadReceiver ].
 	fmt := objectMemory formatOfHeader: hdr.
 	totalLength := objectMemory lengthOf: array format: fmt.
-	fixedFields := objectMemory fixedFieldsOf: array format: fmt length: totalLength.
+	fixedFields := objectMemory
+		               fixedFieldsOf: array
+		               format: fmt
+		               length: totalLength.
 	stSize := totalLength - fixedFields.
-	((self oop: index isGreaterThanOrEqualTo: (objectMemory firstValidIndexOfIndexableObject: array withFormat: fmt))
-	 and: [self oop: index isLessThanOrEqualTo: stSize])
-		ifTrue: [self subscript: array with: (index + fixedFields) storing: value format: fmt]
-		ifFalse: [self primitiveFailFor: (fmt <= 1 ifTrue: [PrimErrBadReceiver] ifFalse: [PrimErrBadIndex])].
-	^value
+	(self
+		 oop: index
+		 isInClosedRangeFrom:
+		 (objectMemory
+			  firstValidIndexOfIndexableObject: array
+			  withFormat: fmt)
+		 to: stSize)
+		ifTrue: [ 
+			self
+				subscript: array
+				with: index + fixedFields
+				storing: value
+				format: fmt ]
+		ifFalse: [ 
+			self primitiveFailFor: (fmt <= 1
+					 ifTrue: [ PrimErrBadReceiver ]
+					 ifFalse: [ PrimErrBadIndex ]) ].
+	^ value
 ]
 
 { #category : #'indexing primitive support' }
