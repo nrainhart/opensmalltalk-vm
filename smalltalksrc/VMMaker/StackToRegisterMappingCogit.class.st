@@ -1842,7 +1842,7 @@ StackToRegisterMappingCogit >> genGetNumSlotsOf: srcReg into: destReg [
 StackToRegisterMappingCogit >> genGetOverflowSlotsOf: srcReg into: destReg [
 	self
 		MoveMw: objectMemory baseHeaderSize negated r: srcReg R: destReg;
-		LogicalShiftLeftCq: 8 R: destReg;
+		LogicalShiftLeftCq: 8 R: destReg;"TODO add 32-bit version without shifts!!!!!"
 		LogicalShiftRightCq: 8 R: destReg.
 	^0
 ]
@@ -1969,7 +1969,10 @@ StackToRegisterMappingCogit >> genJumpImmediate: aRegister [
 
 { #category : #'compile abstract instructions' }
 StackToRegisterMappingCogit >> genJumpNotSmallInteger: aRegister [
+	"Generate a compare and branch to test if aRegister contains other than a SmallInteger.
+	 Answer the jump."
 	<returnTypeC: #'AbstractInstruction *'>
+	<inline: true>
 	^ self
 		  TstCq: 1 R: aRegister;
 		  JumpZero: 0
@@ -2304,13 +2307,14 @@ StackToRegisterMappingCogit >> genPushFloat64ArrayToRegister [
 	self ssTop moveToReg: indexReg.
 	self ssPop: 1.
 
+	1halt.
 	"Array is not immediate"
 	jumpImmediate := self genJumpImmediate: arrayReg.
 	"Index is valid integer"
 	jumpBadIndex := self genJumpNotSmallInteger: indexReg.
 	"Array has sixty four bit indexable format"
-	formatReg := self allocateRegNotConflictingWith: 0. "TODO handle conflicts"
-	nSlotsOrBytesReg := self allocateRegNotConflictingWith: 0. "TODO handle conflicts"
+	formatReg := self allocateRegNotConflictingWith: ((self registerMaskFor: arrayReg) | (self registerMaskFor: indexReg)).
+	nSlotsOrBytesReg := self allocateRegNotConflictingWith: ((self registerMaskFor: arrayReg) | (self registerMaskFor: indexReg) | (self registerMaskFor: formatReg)).
 	self
 		genGetFormatOf: arrayReg
 		into: formatReg
