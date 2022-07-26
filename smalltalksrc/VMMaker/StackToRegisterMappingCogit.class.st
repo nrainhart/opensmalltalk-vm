@@ -2282,7 +2282,7 @@ StackToRegisterMappingCogit >> genPushFloat32ArrayToRegister [
 { #category : #'mapped inline primitive generators - vectorial' }
 StackToRegisterMappingCogit >> genPushFloat64ArrayToRegister [
 
-	| arrayReg indexReg vectorReg jumpImmediate jumpBadIndex formatReg nSlotsOrBytesReg jumpIsPointers accessedElementByteSize jumpSmaller jumpOutOfBounds secondIndexReg secondJumpOutOfBounds |
+	| arrayReg indexReg vectorReg jumpImmediate jumpBadIndex formatReg nSlotsOrBytesReg jumpIsPointers accessedElementByteSize jumpSmaller jumpOutOfBounds secondIndexReg secondJumpOutOfBounds end |
 	objectMemory wordSize = 4 ifTrue: [ ^ EncounteredUnknownBytecode ].
 
 	arrayReg := self allocateRegForStackEntryAt: 0 notConflictingWith: 0.
@@ -2357,12 +2357,16 @@ StackToRegisterMappingCogit >> genPushFloat64ArrayToRegister [
 		Vr: vectorReg
 		R: arrayReg
 		Mw: 0.
+	
+	end := self Jump: 0.
 
 	jumpImmediate jmpTarget: (jumpBadIndex jmpTarget:
 			 (jumpIsPointers jmpTarget: (jumpSmaller jmpTarget:
 					   (jumpOutOfBounds jmpTarget: (secondJumpOutOfBounds jmpTarget:
 							     (self genCallMustBeBooleanFor: objectMemory trueObject)))))).
 
+	end jmpTarget: self Label.
+	
 	"Returns 0 if worked"
 	^ 0
 ]
