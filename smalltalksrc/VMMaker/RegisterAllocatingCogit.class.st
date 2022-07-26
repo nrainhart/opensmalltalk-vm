@@ -883,7 +883,7 @@ RegisterAllocatingCogit >> genSpecialSelectorArithmetic [
 	self ssPop: 2.
 	jumpNotSmallInts := (rcvrIsInt and: [argIsInt]) ifFalse:
 							[argIsInt
-								ifTrue: [objectRepresentation genJumpNotSmallInteger: rcvrReg]
+								ifTrue: [self genJumpNotSmallInteger: rcvrReg]
 								ifFalse:
 									[rcvrIsInt
 										ifTrue: [objectRepresentation genJumpNotSmallInteger: argReg]
@@ -1040,7 +1040,7 @@ RegisterAllocatingCogit >> genSpecialSelectorComparison [
 
 	jumpNotSmallInts := (rcvrIsInt and: [argIsIntConst]) ifFalse:
 							[argIsIntConst
-								ifTrue: [objectRepresentation genJumpNotSmallInteger: rcvrReg]
+								ifTrue: [self genJumpNotSmallInteger: rcvrReg]
 								ifFalse:
 									[rcvrIsInt
 										ifTrue: [objectRepresentation genJumpNotSmallInteger: argReg]

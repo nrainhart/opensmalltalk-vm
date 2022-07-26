@@ -2001,7 +2001,7 @@ SistaCogit >> genSpecialSelectorComparison [
 			[self marshallSendArguments: 1].
 	jumpNotSmallInts := (rcvrIsInt and: [argIsIntConst]) ifFalse:
 							[argIsIntConst
-								ifTrue: [objectRepresentation genJumpNotSmallInteger: ReceiverResultReg]
+								ifTrue: [self genJumpNotSmallInteger: ReceiverResultReg]
 								ifFalse:
 									[rcvrIsInt
 										ifTrue: [objectRepresentation genJumpNotSmallInteger: Arg0Reg]

@@ -1581,6 +1581,17 @@ SimpleStackBasedCogit >> genJumpIf: boolean to: targetBytecodePC [
 	^0
 ]
 
+{ #category : #'compile abstract instructions' }
+SimpleStackBasedCogit >> genJumpNotSmallInteger: aRegister [
+	"Generate a compare and branch to test if aRegister contains other than a SmallInteger.
+	 Answer the jump."
+	<returnTypeC: #'AbstractInstruction *'>
+	<inline: true>
+	^ self
+		  TstCq: 1 R: aRegister;
+		  JumpZero: 0
+]
+
 { #category : #'bytecode generator support' }
 SimpleStackBasedCogit >> genJumpTo: targetBytecodePC [
 	self Jump: (self ensureFixupAt: targetBytecodePC).
@@ -1965,7 +1976,7 @@ SimpleStackBasedCogit >> genPrimitiveFullClosureValue [
 SimpleStackBasedCogit >> genPrimitiveHashMultiply [
 	"Implement 28-bit hashMultiply for SmallInteger and LargePositiveInteger receivers."
 	| jmpFailImm jmpFailNonImm jmpNotSmallInt reenter |
-	jmpNotSmallInt := objectRepresentation genJumpNotSmallInteger: ReceiverResultReg.
+	jmpNotSmallInt := self genJumpNotSmallInteger: ReceiverResultReg.
 
 	objectRepresentation genConvertSmallIntegerToIntegerInReg: ReceiverResultReg.
 	reenter :=

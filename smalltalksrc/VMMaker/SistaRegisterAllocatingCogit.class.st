@@ -451,7 +451,7 @@ SistaRegisterAllocatingCogit >> genSpecialSelectorComparison [
 	self ssPop: 2.
 	jumpNotSmallInts := (rcvrIsInt and: [argIsIntConst]) ifFalse:
 							[argIsIntConst
-								ifTrue: [objectRepresentation genJumpNotSmallInteger: rcvrReg]
+								ifTrue: [self genJumpNotSmallInteger: rcvrReg]
 								ifFalse:
 									[rcvrIsInt
 										ifTrue: [objectRepresentation genJumpNotSmallInteger: argReg]

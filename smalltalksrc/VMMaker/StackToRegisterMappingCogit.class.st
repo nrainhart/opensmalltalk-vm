@@ -1967,17 +1967,6 @@ StackToRegisterMappingCogit >> genJumpImmediate: aRegister [
 	^self JumpNonZero: 0
 ]
 
-{ #category : #'compile abstract instructions' }
-StackToRegisterMappingCogit >> genJumpNotSmallInteger: aRegister [
-	"Generate a compare and branch to test if aRegister contains other than a SmallInteger.
-	 Answer the jump."
-	<returnTypeC: #'AbstractInstruction *'>
-	<inline: true>
-	^ self
-		  TstCq: 1 R: aRegister;
-		  JumpZero: 0
-]
-
 { #category : #'bytecode generator support' }
 StackToRegisterMappingCogit >> genJumpTo: targetBytecodePC [
 	| eventualTarget generator fixup |
@@ -2741,10 +2730,10 @@ StackToRegisterMappingCogit >> genSpecialSelectorArithmetic [
 			[self marshallSendArguments: 1].
 	jumpNotSmallInts := (rcvrIsInt and: [argIsInt]) ifFalse:
 							[argIsInt
-								ifTrue: [objectRepresentation genJumpNotSmallInteger: ReceiverResultReg]
+								ifTrue: [self genJumpNotSmallInteger: ReceiverResultReg]
 								ifFalse:
 									[rcvrIsInt
-										ifTrue: [objectRepresentation genJumpNotSmallInteger: Arg0Reg]
+										ifTrue: [self genJumpNotSmallInteger: Arg0Reg]
 										ifFalse: [objectRepresentation genJumpNotSmallIntegersIn: ReceiverResultReg and: Arg0Reg scratch: TempReg]]].
 	primDescriptor opcode caseOf: {
 		[AddRR] -> [argIsConst
@@ -2855,7 +2844,7 @@ StackToRegisterMappingCogit >> genSpecialSelectorComparison [
 			[self marshallSendArguments: 1].
 	jumpNotSmallInts := (rcvrIsInt and: [argIsIntConst]) ifFalse:
 							[argIsIntConst
-								ifTrue: [objectRepresentation genJumpNotSmallInteger: ReceiverResultReg]
+								ifTrue: [self genJumpNotSmallInteger: ReceiverResultReg]
 								ifFalse:
 									[rcvrIsInt
 										ifTrue: [objectRepresentation genJumpNotSmallInteger: Arg0Reg]
