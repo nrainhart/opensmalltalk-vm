@@ -159,6 +159,60 @@ VMJitSimdBytecode >> testCannotPush32BitArrayTo64BitPerLaneRegister [
 ]
 
 { #category : #tests }
+VMJitSimdBytecode >> testCannotPushArrayToRegisterIfIndexIsNotInteger [
+
+	| endInstruction primitiveAddress array register |
+	
+	array := self new64BitIndexableFromArray: #(1.0 2.0 3.0 4.0).
+	arguments := { memory trueObject. "Not a valid index"  array }.		
+		
+	sentSelector := #+.
+	self buildStackFrame.
+	
+	primitiveAddress := self compile: [ 
+								 cogit genPushTemporaryVariable: 0.		
+								 cogit genPushTemporaryVariable: 1.		
+								 cogit genPushFloat64ArrayToRegister.
+		                    "If the primitive fails it continues, so we need to have an instruction to detect the end"
+		                    endInstruction := cogit Stop ].
+
+	self runFrom: primitiveAddress until: endInstruction address.
+	
+	register := machineSimulator vectorRegister0Value.
+	
+	self assert: (register doubleAt: 1) equals: 0.0.
+	self assert: (register doubleAt: 9) equals: 0.0.
+
+]
+
+{ #category : #tests }
+VMJitSimdBytecode >> testCannotPushArrayToRegisterIfIndexIsOutOfBounds [
+
+	| endInstruction primitiveAddress array register |
+	
+	array := self new64BitIndexableFromArray: #(1.0 2.0 3.0 4.0).
+	arguments := { memory integerValueOf: 3. "Out of bounds index"  array }.		
+		
+	sentSelector := #+.
+	self buildStackFrame.
+	
+	primitiveAddress := self compile: [ 
+								 cogit genPushTemporaryVariable: 0.		
+								 cogit genPushTemporaryVariable: 1.		
+								 cogit genPushFloat64ArrayToRegister.
+		                    "If the primitive fails it continues, so we need to have an instruction to detect the end"
+		                    endInstruction := cogit Stop ].
+
+	self runFrom: primitiveAddress until: endInstruction address.
+	
+	register := machineSimulator vectorRegister0Value.
+	
+	self assert: (register doubleAt: 1) equals: 0.0.
+	self assert: (register doubleAt: 9) equals: 0.0.
+
+]
+
+{ #category : #tests }
 VMJitSimdBytecode >> testPushArrayToRegisterCopiesArrayChunkIntoVectorRegister [
 
 	| endInstruction primitiveAddress array register |
