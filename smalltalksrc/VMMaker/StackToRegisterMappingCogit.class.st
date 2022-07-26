@@ -2950,7 +2950,7 @@ StackToRegisterMappingCogit >> genStoreFloat32RegisterIntoArray [
 
 { #category : #'mapped inline primitive generators - vectorial' }
 StackToRegisterMappingCogit >> genStoreFloat64RegisterIntoArray [
-	| arrayReg indexReg vectorReg |
+	| arrayReg indexReg vectorReg jumpImmediate jumpBadIndex formatReg nSlotsOrBytesReg jumpIsPointers accessedElementByteSize jumpSmaller jumpOutOfBounds secondIndexReg secondJumpOutOfBounds end |
 	
 	objectMemory wordSize = 4 ifTrue: [ ^ EncounteredUnknownBytecode ].
 	
@@ -2962,6 +2962,49 @@ StackToRegisterMappingCogit >> genStoreFloat64RegisterIntoArray [
 	
 	self ssTop moveToReg: indexReg.
 	self ssPop: 1.
+	
+	"Array is not immediate"
+	jumpImmediate := self genJumpImmediate: arrayReg.
+	"Index is valid integer"
+	jumpBadIndex := self genJumpNotSmallInteger: indexReg.
+	"Array has sixty four bit indexable format"
+	formatReg := self allocateRegNotConflictingWith:
+		             ((self registerMaskFor: arrayReg) bitOr:
+			              (self registerMaskFor: indexReg)).
+	nSlotsOrBytesReg := self allocateRegNotConflictingWith:
+		                    (((self registerMaskFor: arrayReg) bitOr:
+			                      (self registerMaskFor: indexReg)) bitOr:
+			                     (self registerMaskFor: formatReg)).
+	self
+		genGetFormatOf: arrayReg
+		into: formatReg
+		leastSignificantHalfOfBaseHeaderIntoScratch: nSlotsOrBytesReg. "TODO this result is not used, pass different register?"
+	self genGetNumSlotsOf: arrayReg into: nSlotsOrBytesReg.
+	self CmpCq: objectMemory sixtyFourBitIndexableFormat R: formatReg.
+	jumpIsPointers := self JumpBelow: 0.
+	"First index is in bounds"
+	accessedElementByteSize := 8.
+	self
+		genConvertDataFormat: formatReg
+		numSlots: nSlotsOrBytesReg
+		intoBytes: nSlotsOrBytesReg.
+	self CmpCq: accessedElementByteSize R: nSlotsOrBytesReg.
+	jumpSmaller := self JumpBelow: 0.
+	"Subtract the accessed element count to make the register into an upper bound."
+	accessedElementByteSize > 1 ifTrue: [ 
+		self SubCq: accessedElementByteSize - 1 R: nSlotsOrBytesReg ].
+	self CmpR: nSlotsOrBytesReg R: indexReg.
+	jumpOutOfBounds := self JumpAboveOrEqual: 0.
+	"Second index is in bounds"
+	secondIndexReg := self allocateRegNotConflictingWith:
+		                  ((((self registerMaskFor: arrayReg) bitOr:
+			                     (self registerMaskFor: indexReg)) bitOr:
+			                    (self registerMaskFor: formatReg)) bitOr:
+			                   (self registerMaskFor: nSlotsOrBytesReg)).
+	self MoveR: indexReg R: secondIndexReg.
+	self AddCq: 1 R: secondIndexReg.
+	self CmpR: nSlotsOrBytesReg R: secondIndexReg.
+	secondJumpOutOfBounds := self JumpAboveOrEqual: 0.
 	
 	self AddCq: objectMemory baseHeaderSize R: arrayReg.
 
@@ -2980,6 +3023,15 @@ StackToRegisterMappingCogit >> genStoreFloat64RegisterIntoArray [
 	self St1S: 64 Vr: vectorReg R: arrayReg Mw: 0.
 	
 	self ssPushRegister: arrayReg.
+	
+	end := self Jump: 0.
+
+	jumpImmediate jmpTarget: (jumpBadIndex jmpTarget:
+			 (jumpIsPointers jmpTarget: (jumpSmaller jmpTarget:
+					   (jumpOutOfBounds jmpTarget: (secondJumpOutOfBounds jmpTarget:
+							     (self genCallMustBeBooleanFor: objectMemory trueObject)))))).
+
+	end jmpTarget: self Label.
 	
 	"Returns 0 if worked"
 	^0
