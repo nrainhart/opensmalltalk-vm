@@ -21,21 +21,27 @@ VMJitSimdBytecode >> jitOptions [
 		  yourself
 ]
 
+{ #category : #running }
+VMJitSimdBytecode >> setUp [
+
+	super setUp.
+	self setUpTrampolines.
+]
+
+{ #category : #running }
+VMJitSimdBytecode >> setUpTrampolines [
+	
+	cogit ceSendMustBeBooleanAddFalseTrampoline: (self compileTrampoline: [ cogit RetN: 0 ] named:#ceSendMustBeBooleanAddFalseTrampoline).
+	cogit ceSendMustBeBooleanAddTrueTrampoline: (self compileTrampoline: [ cogit RetN: 0 ] named:#ceSendMustBeBooleanAddTrueTrampoline).
+]
+
 { #category : #tests }
 VMJitSimdBytecode >> testAddVector32CopiesArraySumIntoVectorRegister [
 
 	| endInstruction primitiveAddress array register |
 	
-	arguments := { memory integerObjectOf: 0.  array := self new32BitIndexableOfSize: 8. memory integerObjectOf: 4 }.	
-		
-	memory storeFloat32: 0 ofObject: array withValue: 1.0. 
-	memory storeFloat32: 1 ofObject: array withValue: 2.0.
-	memory storeFloat32: 2 ofObject: array withValue: 3.0.
-	memory storeFloat32: 3 ofObject: array withValue: 4.0. 		
-	memory storeFloat32: 4 ofObject: array withValue: 5.0. 
-	memory storeFloat32: 5 ofObject: array withValue: 6.0.
-	memory storeFloat32: 6 ofObject: array withValue: 7.0.
-	memory storeFloat32: 7 ofObject: array withValue: 8.0. 		
+	array := self new32BitIndexableFromArray: #(1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0).
+	arguments := { memory integerObjectOf: 0.  array. memory integerObjectOf: 4 }.		
 		
 	sentSelector := #+.
 	self buildStackFrame.
@@ -68,12 +74,8 @@ VMJitSimdBytecode >> testAddVectorCopiesArraySumIntoVectorRegister [
 
 	| endInstruction primitiveAddress array register |
 	
-	arguments := { memory integerObjectOf: 0.  array := self new64BitIndexableOfSize: 4. memory integerObjectOf: 2 }.	
-		
-	memory storeFloat64: 0 ofObject: array withValue: 1.0. 
-	memory storeFloat64: 1 ofObject: array withValue: 2.0.
-	memory storeFloat64: 2 ofObject: array withValue: 3.0.
-	memory storeFloat64: 3 ofObject: array withValue: 4.0. 		
+	array := self new64BitIndexableFromArray: #(1.0 2.0 3.0 4.0).
+	arguments := { memory integerObjectOf: 0. array. memory integerObjectOf: 2 }.	
 		
 	sentSelector := #+.
 	self buildStackFrame.
@@ -103,13 +105,9 @@ VMJitSimdBytecode >> testAddVectorPushesArraySumIntoSimulatedStack [
 
 	| endInstruction primitiveAddress array entry |
 	
-	arguments := { memory integerObjectOf: 0.  array := self new64BitIndexableOfSize: 4. memory integerObjectOf: 2 }.	
-		
-	memory storeFloat64: 0 ofObject: array withValue: 1.0. 
-	memory storeFloat64: 1 ofObject: array withValue: 2.0.
-	memory storeFloat64: 2 ofObject: array withValue: 3.0.
-	memory storeFloat64: 3 ofObject: array withValue: 4.0. 		
-		
+	array := self new64BitIndexableFromArray: #(1.0 2.0 3.0 4.0).
+	arguments := { memory integerObjectOf: 0. array. memory integerObjectOf: 2 }.
+	
 	sentSelector := #+.
 	self buildStackFrame.
 	
@@ -134,16 +132,39 @@ VMJitSimdBytecode >> testAddVectorPushesArraySumIntoSimulatedStack [
 ]
 
 { #category : #tests }
+VMJitSimdBytecode >> testCannotPush32BitArrayTo64BitPerLaneRegister [
+
+	| endInstruction primitiveAddress array register |
+	
+	array := self new32BitIndexableFromArray: #(1.0 2.0 3.0 4.0).
+	arguments := { memory integerObjectOf: 2.  array }.		
+		
+	sentSelector := #+.
+	self buildStackFrame.
+	
+	primitiveAddress := self compile: [ 
+								 cogit genPushTemporaryVariable: 0.		
+								 cogit genPushTemporaryVariable: 1.		
+								 cogit genPushFloat64ArrayToRegister.
+		                    "If the primitive fails it continues, so we need to have an instruction to detect the end"
+		                    endInstruction := cogit Stop ].
+
+	self runFrom: primitiveAddress until: endInstruction address.
+	
+	register := machineSimulator vectorRegister0Value.
+	
+	self assert: (register doubleAt: 1) equals: 0.0.
+	self assert: (register doubleAt: 9) equals: 0.0.
+
+]
+
+{ #category : #tests }
 VMJitSimdBytecode >> testPushArrayToRegisterCopiesArrayChunkIntoVectorRegister [
 
 	| endInstruction primitiveAddress array register |
 	
-	arguments := { memory integerObjectOf: 2.  array := self new64BitIndexableOfSize: 4 }.	
-		
-	memory storeFloat64: 0 ofObject: array withValue: 1.0. 
-	memory storeFloat64: 1 ofObject: array withValue: 2.0.
-	memory storeFloat64: 2 ofObject: array withValue: 3.0.
-	memory storeFloat64: 3 ofObject: array withValue: 4.0. 		
+	array := self new64BitIndexableFromArray: #(1.0 2.0 3.0 4.0).
+	arguments := { memory integerObjectOf: 2.  array }. 		
 		
 	sentSelector := #+.
 	self buildStackFrame.
@@ -169,12 +190,8 @@ VMJitSimdBytecode >> testPushArrayToRegisterPushesArrayChunkIntoSimulatedStack [
 
 	| endInstruction primitiveAddress array entry |
 	
-	arguments := { memory integerObjectOf: 2.  array := self new64BitIndexableOfSize: 4 }.	
-		
-	memory storeFloat64: 0 ofObject: array withValue: 1.0. 
-	memory storeFloat64: 1 ofObject: array withValue: 2.0.
-	memory storeFloat64: 2 ofObject: array withValue: 3.0.
-	memory storeFloat64: 3 ofObject: array withValue: 4.0. 		
+	array := self new64BitIndexableFromArray: #(1.0 2.0 3.0 4.0).
+	arguments := { memory integerObjectOf: 2.  array }.		
 		
 	sentSelector := #+.
 	self buildStackFrame.
@@ -199,12 +216,8 @@ VMJitSimdBytecode >> testStoreRegisterIntoArrayReplacesArrayElementsWithRegister
 
 	| endInstruction primitiveAddress array |
 	
-	arguments := { memory integerObjectOf: 2.  array := self new64BitIndexableOfSize: 4. memory integerObjectOf: 0 }.	
-		
-	memory storeFloat64: 0 ofObject: array withValue: 1.0. 
-	memory storeFloat64: 1 ofObject: array withValue: 2.0.
-	memory storeFloat64: 2 ofObject: array withValue: 3.0.
-	memory storeFloat64: 3 ofObject: array withValue: 4.0. 		
+	array := self new64BitIndexableFromArray: #(1.0 2.0 3.0 4.0).
+	arguments := { memory integerObjectOf: 2.  array. memory integerObjectOf: 0 }.	
 		
 	sentSelector := #+.
 	self buildStackFrame.
@@ -230,12 +243,8 @@ VMJitSimdBytecode >> testSubVectorStoreResultIntoVectorRegister [
 
 	| endInstruction primitiveAddress array register |
 	
-	arguments := { memory integerObjectOf: 0.  array := self new64BitIndexableOfSize: 4. memory integerObjectOf: 2 }.	
-		
-	memory storeFloat64: 0 ofObject: array withValue: 5.0. 
-	memory storeFloat64: 1 ofObject: array withValue: 3.0.
-	memory storeFloat64: 2 ofObject: array withValue: 2.0.
-	memory storeFloat64: 3 ofObject: array withValue: 1.0. 		
+	array := self new64BitIndexableFromArray: #(5.0 3.0 2.0 1.0).
+	arguments := { memory integerObjectOf: 0.  array. memory integerObjectOf: 2 }.		
 		
 	sentSelector := #-."TODO is this necessary?"
 	self buildStackFrame.

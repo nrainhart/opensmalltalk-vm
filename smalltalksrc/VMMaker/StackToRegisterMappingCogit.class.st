@@ -2282,7 +2282,7 @@ StackToRegisterMappingCogit >> genPushFloat32ArrayToRegister [
 { #category : #'mapped inline primitive generators - vectorial' }
 StackToRegisterMappingCogit >> genPushFloat64ArrayToRegister [
 
-	| arrayReg indexReg vectorReg jumpImmediate jumpBadIndex formatReg nSlotsOrBytesReg jumpIsPointers accessedElementByteSize jumpSmaller jumpOutOfBounds secondIndexReg |
+	| arrayReg indexReg vectorReg jumpImmediate jumpBadIndex formatReg nSlotsOrBytesReg jumpIsPointers accessedElementByteSize jumpSmaller jumpOutOfBounds secondIndexReg secondJumpOutOfBounds |
 	objectMemory wordSize = 4 ifTrue: [ ^ EncounteredUnknownBytecode ].
 
 	arrayReg := self allocateRegForStackEntryAt: 0 notConflictingWith: 0.
@@ -2296,14 +2296,18 @@ StackToRegisterMappingCogit >> genPushFloat64ArrayToRegister [
 	self ssTop moveToReg: indexReg.
 	self ssPop: 1.
 
-	1halt.
 	"Array is not immediate"
 	jumpImmediate := self genJumpImmediate: arrayReg.
 	"Index is valid integer"
 	jumpBadIndex := self genJumpNotSmallInteger: indexReg.
 	"Array has sixty four bit indexable format"
-	formatReg := self allocateRegNotConflictingWith: ((self registerMaskFor: arrayReg) | (self registerMaskFor: indexReg)).
-	nSlotsOrBytesReg := self allocateRegNotConflictingWith: ((self registerMaskFor: arrayReg) | (self registerMaskFor: indexReg) | (self registerMaskFor: formatReg)).
+	formatReg := self allocateRegNotConflictingWith:
+		             ((self registerMaskFor: arrayReg) bitOr:
+			              (self registerMaskFor: indexReg)).
+	nSlotsOrBytesReg := self allocateRegNotConflictingWith:
+		                    (((self registerMaskFor: arrayReg) bitOr:
+			                      (self registerMaskFor: indexReg)) bitOr:
+			                     (self registerMaskFor: formatReg)).
 	self
 		genGetFormatOf: arrayReg
 		into: formatReg
@@ -2325,10 +2329,15 @@ StackToRegisterMappingCogit >> genPushFloat64ArrayToRegister [
 	self CmpR: nSlotsOrBytesReg R: indexReg.
 	jumpOutOfBounds := self JumpAboveOrEqual: 0.
 	"Second index is in bounds"
-	secondIndexReg := self allocateRegNotConflictingWith: 0. "TODO handle conflicts".
-	self AddCq: 1 R: arrayReg.
+	secondIndexReg := self allocateRegNotConflictingWith:
+		                  ((((self registerMaskFor: arrayReg) bitOr:
+			                     (self registerMaskFor: indexReg)) bitOr:
+			                    (self registerMaskFor: formatReg)) bitOr:
+			                   (self registerMaskFor: nSlotsOrBytesReg)).
+	self MoveR: indexReg R: secondIndexReg.
+	self AddCq: 1 R: secondIndexReg.
 	self CmpR: nSlotsOrBytesReg R: secondIndexReg.
-	jumpOutOfBounds := self JumpAboveOrEqual: 0.
+	secondJumpOutOfBounds := self JumpAboveOrEqual: 0.
 
 	self AddCq: objectMemory baseHeaderSize R: arrayReg.
 
@@ -2349,9 +2358,10 @@ StackToRegisterMappingCogit >> genPushFloat64ArrayToRegister [
 		R: arrayReg
 		Mw: 0.
 
-	jumpImmediate jmpTarget:
-		(jumpBadIndex jmpTarget: (jumpIsPointers jmpTarget:
-				  (jumpSmaller jmpTarget: (jumpOutOfBounds jmpTarget: self Label)))).
+	jumpImmediate jmpTarget: (jumpBadIndex jmpTarget:
+			 (jumpIsPointers jmpTarget: (jumpSmaller jmpTarget:
+					   (jumpOutOfBounds jmpTarget: (secondJumpOutOfBounds jmpTarget:
+							     (self genCallMustBeBooleanFor: objectMemory trueObject)))))).
 
 	"Returns 0 if worked"
 	^ 0
