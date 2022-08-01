@@ -1245,9 +1245,10 @@ CogObjectRepresentationForSpur >> genPrimitiveAtPut [
 { #category : #'primitive generators' }
 CogObjectRepresentationForSpur >> genPrimitiveFloat64ArrayAdd [
 	| loop exit |
-	cogit genLoadArgAtDepth: 0 into: ClassReg. "result"
-	cogit genLoadArgAtDepth: 1 into: Arg1Reg.  "arg2"
-	cogit genLoadArgAtDepth: 2 into: Arg0Reg.  "arg1"
+	cogit
+		genStackArgAt: 0 into: ClassReg; "result"
+		genStackArgAt: 1 into: Arg1Reg;  "arg2"
+		genStackArgAt: 2 into: Arg0Reg.  "arg1"
 	
 	cogit genGetNumSlotsOf: ClassReg into: TempReg.
 	
@@ -1263,30 +1264,37 @@ CogObjectRepresentationForSpur >> genPrimitiveFloat64ArrayAdd [
 	Check all arrays have same size (or that result is smaller than the other two)
 	"
 	
+	"return result array (need to copy register now since it's modified afterwards)"
+	cogit MoveR: ClassReg R: ReceiverResultReg.
+	
 	"Initialize loop variable"
 	cogit LogicalShiftRightCq: 1 R: TempReg.
 	
-	cogit AddCq: objectMemory baseHeaderSize R: Arg0Reg.
-	cogit AddCq: objectMemory baseHeaderSize R: Arg1Reg.
-	cogit AddCq: objectMemory baseHeaderSize R: ClassReg.
+	cogit
+		AddCq: objectMemory baseHeaderSize R: Arg0Reg;
+		AddCq: objectMemory baseHeaderSize R: Arg1Reg;
+		AddCq: objectMemory baseHeaderSize R: ClassReg.
 	
 	loop := cogit Label.
 	
 	cogit CmpCq: 0 R: TempReg.
 	exit := cogit JumpLessOrEqual: 0.
 	
-	cogit Ld1S: 64 Vr: VReg0 R: Arg0Reg Mw: 16.
-	cogit Ld1S: 64 Vr: VReg1 R: Arg1Reg Mw: 16.
-	cogit FaddS: 64 Rv: VReg0 Rv: VReg1 Rv: VReg2.
-	cogit St1S: 64 Vr: VReg2 R: ClassReg Mw: 16.
+	cogit
+		Ld1S: 64 Vr: VReg0 R: Arg0Reg Mw: 16;
+		Ld1S: 64 Vr: VReg1 R: Arg1Reg Mw: 16;
+		FaddS: 64 Rv: VReg0 Rv: VReg1 Rv: VReg2;
+		St1S: 64 Vr: VReg2 R: ClassReg Mw: 16.
 	
-	cogit SubCq: 1 R: TempReg.
-   
-	cogit Jump: loop.
+	cogit
+		SubCq: 1 R: TempReg;
+		Jump: loop.
 
 	exit jmpTarget: cogit Label.
+	
+	cogit genPrimReturn.
 
-	^ cogit genPrimReturn
+	^ 0
 ]
 
 { #category : #'primitive generators' }
