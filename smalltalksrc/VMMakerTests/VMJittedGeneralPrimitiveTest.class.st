@@ -23,7 +23,7 @@ VMJittedGeneralPrimitiveTest >> testCheckImmediateWhenImmediateFloat [
 		ifTrue: [ ^ self skip ].
 	
 	self compile: [ | jump | 
-		jump := cogit objectRepresentation genJumpImmediate: Arg0Reg.
+		jump := cogit genJumpImmediate: Arg0Reg.
 		"Non-Immediate => 0"
 		cogit MoveCq: 0 R: ReceiverResultReg.
 		cogit RetN: 0.
@@ -44,7 +44,7 @@ VMJittedGeneralPrimitiveTest >> testCheckImmediateWhenImmediateFloat [
 VMJittedGeneralPrimitiveTest >> testCheckImmediateWhenImmediateSmallInteger [
 		
 	self compile: [ | jump | 
-		jump := cogit objectRepresentation genJumpImmediate: Arg0Reg.
+		jump := cogit genJumpImmediate: Arg0Reg.
 		"Non-Immediate => 0"
 		cogit MoveCq: 0 R: ReceiverResultReg.
 		cogit RetN: 0.
@@ -64,7 +64,7 @@ VMJittedGeneralPrimitiveTest >> testCheckImmediateWhenImmediateSmallInteger [
 VMJittedGeneralPrimitiveTest >> testCheckImmediateWhenNonImmediate [
 		
 	self compile: [ | jump | 
-		jump := cogit objectRepresentation genJumpImmediate: Arg0Reg.
+		jump := cogit genJumpImmediate: Arg0Reg.
 		"Non-Immediate => 0"
 		cogit MoveCq: 0 R: ReceiverResultReg.
 		cogit RetN: 0.

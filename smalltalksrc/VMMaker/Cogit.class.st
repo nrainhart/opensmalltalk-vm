@@ -1157,6 +1157,9 @@ Cogit class >> initializePrimitiveTable [
 		"(557 genPrimitiveSmallFloatArctan				0)"
 		"(558 genPrimitiveSmallFloatLogN				0)"
 		"(559 genPrimitiveSmallFloatExp				0)"
+						
+		"SIMD primitives"
+		(574 genPrimitiveFloat64ArrayAdd)
 
 		"Pinned object creation primitives"
 		"(598 primitiveNewPinned)"

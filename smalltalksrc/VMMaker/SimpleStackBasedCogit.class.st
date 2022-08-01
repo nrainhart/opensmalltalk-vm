@@ -1155,6 +1155,54 @@ SimpleStackBasedCogit >> genCmpConstant: constant R: register [
 ]
 
 { #category : #'primitive generators' }
+SimpleStackBasedCogit >> genConvertDataFormat: formatReg numSlots: slotsRegister intoBytes: destReg [
+	| jumpIsBytes jumpIsShorts jumpIsLongs jumpLongLongsDone jumpBytesDone jumpShortsDone jumpLongsDone |
+	slotsRegister ~= destReg ifTrue: [
+		self MoveR: slotsRegister R: destReg.
+	].
+
+	self CmpCq: objectMemory firstByteFormat R: formatReg.
+	jumpIsBytes := self JumpAboveOrEqual: 0.
+	
+	self CmpCq: objectMemory firstShortFormat R: formatReg.
+	jumpIsShorts := self JumpAboveOrEqual: 0.
+	
+	self CmpCq: objectMemory firstLongFormat R: formatReg.
+	jumpIsLongs := self JumpAboveOrEqual: 0.
+
+	"Long long"
+	self LogicalShiftLeftCq: objectMemory shiftForWord R: destReg.
+	jumpLongLongsDone := self Jump: 0.
+	
+	"Bytes"
+	jumpIsBytes jmpTarget:
+		(self LogicalShiftLeftCq: objectMemory shiftForWord R: destReg).
+		self AndCq: objectMemory wordSize - 1 R: formatReg.
+		self SubR: formatReg R: destReg.
+	jumpBytesDone := self Jump: 0.
+	
+	jumpIsShorts jmpTarget:
+		(self LogicalShiftLeftCq: objectMemory shiftForWord - 1 R: destReg).
+		self AndCq: (objectMemory wordSize >> 1) - 1 R: formatReg.
+		self SubR: formatReg R: destReg.
+		self LogicalShiftLeftCq: 1 R: destReg.
+	jumpShortsDone := self Jump: 0.
+	
+	jumpIsLongs jmpTarget:
+		(self LogicalShiftLeftCq: objectMemory shiftForWord - 2 R: destReg).
+		self AndCq: (objectMemory wordSize >> 2) - 1 R: formatReg.
+		self SubR: formatReg R: destReg.
+		self LogicalShiftLeftCq: 2 R: destReg.
+	jumpLongsDone := self Jump: 0.
+	
+	jumpLongLongsDone jmpTarget:
+	(jumpLongsDone jmpTarget:
+	(jumpShortsDone jmpTarget:
+	(jumpBytesDone jmpTarget:
+		self Label))).
+]
+
+{ #category : #'primitive generators' }
 SimpleStackBasedCogit >> genDoubleFailIfZeroArgRcvr: rcvrReg arg: argReg [
 	<option: #DPFPReg0>
 	<var: 'rcvrReg' type: #int>
@@ -1524,6 +1572,57 @@ SimpleStackBasedCogit >> genFastPrimTraceUsing: r1 and: r2 [
 	self MoveR: TempReg Xwr: r2 R: r1
 ]
 
+{ #category : #'compile abstract instructions' }
+SimpleStackBasedCogit >> genGetFormatOf: sourceReg into: destReg leastSignificantHalfOfBaseHeaderIntoScratch: scratchRegOrNone [
+	"Get the format of the object in sourceReg into destReg.  If scratchRegOrNone
+	 is not NoReg, load at least the least significant 32-bits (64-bits in 64-bits) of the
+	 header word, which contains the format, into scratchRegOrNone."
+	scratchRegOrNone = NoReg
+		ifTrue:
+			[self flag: #endianness.
+			 self MoveMb: 3 r: sourceReg R: destReg]
+		ifFalse:
+			[self MoveMw: 0 r: sourceReg R: destReg.
+			 self MoveR: destReg R: scratchRegOrNone. "destReg := (at least) least significant half of self baseHeader: receiver"
+			 self LogicalShiftRightCq: objectMemory formatShift R: destReg].
+	self AndCq: objectMemory formatMask R: destReg.	"formatReg := self formatOfHeader: destReg"
+	^0
+]
+
+{ #category : #'compile abstract instructions' }
+SimpleStackBasedCogit >> genGetNumSlotsOf: srcReg into: destReg [
+	"Get the size in word-sized slots of the object in srcReg into destReg.
+	 srcReg may equal destReg."
+	<var: #jmp type: #'AbstractInstruction *'>
+	| jmp |
+	self assert: srcReg ~= destReg.
+	self genGetRawSlotSizeOfNonImm: srcReg into: destReg.
+	self CmpCq: objectMemory numSlotsMask R: destReg.
+	jmp := self JumpLess: 0.
+	self genGetOverflowSlotsOf: srcReg into: destReg.
+	jmp jmpTarget: self Label.
+	^0
+]
+
+{ #category : #'compile abstract instructions' }
+SimpleStackBasedCogit >> genGetOverflowSlotsOf: srcReg into: destReg [
+	self
+		MoveMw: objectMemory baseHeaderSize negated r: srcReg R: destReg;
+		LogicalShiftLeftCq: 8 R: destReg;"TODO add 32-bit version without shifts!!!!!"
+		LogicalShiftRightCq: 8 R: destReg.
+	^0
+]
+
+{ #category : #'compile abstract instructions' }
+SimpleStackBasedCogit >> genGetRawSlotSizeOfNonImm: sourceReg into: destReg [
+	"The raw numSlots field is the most significant byte of the 64-bit header word.
+	 MoveMbrR zero-extends."
+	self backEnd byteReadsZeroExtend ifFalse:
+		[self MoveCq: 0 R: destReg].
+	self MoveMb: 7 r: sourceReg R: destReg.
+	^0
+]
+
 { #category : #'bytecode generator support' }
 SimpleStackBasedCogit >> genInlinedIdenticalOrNotIf: orNot [
 	| jumpNotEqual jumpPush |
@@ -1579,6 +1678,15 @@ SimpleStackBasedCogit >> genJumpIf: boolean to: targetBytecodePC [
 	self genCallMustBeBooleanFor: boolean.
 	ok jmpTarget: (self annotateBytecode: self Label).
 	^0
+]
+
+{ #category : #'compile abstract instructions' }
+SimpleStackBasedCogit >> genJumpImmediate: aRegister [
+	"Generate a compare and branch to test if aRegister contains an immediate.
+	 Answer the jump."
+	<returnTypeC: #'AbstractInstruction *'>
+	self TstCq: objectMemory tagMask R: aRegister.
+	^self JumpNonZero: 0
 ]
 
 { #category : #'compile abstract instructions' }
@@ -1987,7 +2095,7 @@ SimpleStackBasedCogit >> genPrimitiveHashMultiply [
 	self RetN: 0.
 
 	jmpNotSmallInt jmpTarget: self Label.
-	jmpFailImm := objectRepresentation genJumpImmediate: ReceiverResultReg.
+	jmpFailImm := self genJumpImmediate: ReceiverResultReg.
 	objectRepresentation genGetCompactClassIndexNonImmOf: ReceiverResultReg into: ClassReg.
 	self CmpCq: ClassLargePositiveIntegerCompactIndex R: ClassReg.
 	jmpFailNonImm := self JumpNonZero: 0.
