@@ -1601,6 +1601,103 @@ VMPrimitiveTest >> testPrimitiveFloat64ArrayAdd [
 	self assert: (memory fetchFloat64: 1 ofObject: result) equals: 22.0.
 ]
 
+{ #category : #'tests - primitiveAdd - Float64Array' }
+VMPrimitiveTest >> testPrimitiveFloat64ArrayAddFailsIfFirstOperandIsNotFloat64Array [
+
+	| x y z result firstTerm size |
+	firstTerm := 1.0 to: 2.0.
+	size := firstTerm size.
+
+	x := self new32BitIndexableFromArray: firstTerm.
+	y := self new64BitIndexableFromArray: (firstTerm collect: [:i | i * 10]).
+	z := self new64BitIndexableOfSize: size.
+	
+	interpreter push: x.
+	interpreter push: y.
+	interpreter push: z.
+	interpreter primitiveFloat64ArrayAdd.
+	
+	self assert: interpreter failed.
+	
+	result := interpreter stackTop.
+	
+	self assert: (memory fetchFloat64: 0 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat64: 1 ofObject: result) equals: 0.0.
+]
+
+{ #category : #'tests - primitiveAdd - Float64Array' }
+VMPrimitiveTest >> testPrimitiveFloat64ArrayAddFailsIfOperandArrayIsSmallerThanResultArray [
+
+	| x y z result firstTerm size |
+	firstTerm := 1.0 to: 2.0.
+	size := firstTerm size.
+
+	x := self new64BitIndexableFromArray: firstTerm.
+	y := self new64BitIndexableFromArray: (firstTerm collect: [:i | i * 10]).
+	z := self new64BitIndexableOfSize: size + 1.
+	
+	interpreter push: x.
+	interpreter push: y.
+	interpreter push: z.
+	interpreter primitiveFloat64ArrayAdd.
+	
+	self assert: interpreter failed.
+	
+	result := interpreter stackTop.
+	
+	self assert: (memory fetchFloat64: 0 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat64: 1 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat64: 2 ofObject: result) equals: 0.0.
+]
+
+{ #category : #'tests - primitiveAdd - Float64Array' }
+VMPrimitiveTest >> testPrimitiveFloat64ArrayAddFailsIfResultArgumentIsNotFloat64Array [
+
+	| x y z result firstTerm size |
+	firstTerm := 1.0 to: 2.0.
+	size := firstTerm size.
+
+	x := self new64BitIndexableFromArray: firstTerm.
+	y := self new64BitIndexableFromArray: (firstTerm collect: [:i | i * 10]).
+	z := self new32BitIndexableOfSize: size.
+	
+	interpreter push: x.
+	interpreter push: y.
+	interpreter push: z.
+	interpreter primitiveFloat64ArrayAdd.
+	
+	self assert: interpreter failed.
+	
+	result := interpreter stackTop.
+	
+	self assert: (memory fetchFloat64: 0 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat64: 1 ofObject: result) equals: 0.0.
+]
+
+{ #category : #'tests - primitiveAdd - Float64Array' }
+VMPrimitiveTest >> testPrimitiveFloat64ArrayAddFailsIfSecondOperandIsNotFloat64Array [
+
+	| x y z result firstTerm size |
+	firstTerm := 1.0 to: 2.0.
+	size := firstTerm size.
+
+	x := self new64BitIndexableFromArray: firstTerm.
+	y := self new32BitIndexableFromArray: (firstTerm collect: [:i | i * 10]).
+	z := self new64BitIndexableOfSize: size.
+	
+	interpreter push: x.
+	interpreter push: y.
+	interpreter push: z.
+	interpreter primitiveFloat64ArrayAdd.
+	
+	self assert: interpreter failed.
+	
+	result := interpreter stackTop.
+	
+	self assert: (memory fetchFloat64: 0 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat64: 1 ofObject: result) equals: 0.0.
+]
+
 { #category : #'tests - primitiveImmutability' }
 VMPrimitiveTest >> testPrimitiveGetImmutabilityOfImmediateReturnsTrue [
 

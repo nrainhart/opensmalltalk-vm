@@ -11296,20 +11296,23 @@ StackInterpreter >> primitiveFloat64ArrayAdd [
 
 	<var: #rcvr type: #'double *'>
 	<var: #arg type: #'double *'>
-	| arg1 arg2 res arraySize |
+	| arg1 arg2 res arg1Size arg2Size resSize |
 	arg1 := self stackValue: 2.
 	arg2 := self stackValue: 1.
 	res := self stackTop.
-	arraySize := objectMemory numSlotsOf: res.
+	arg1Size := objectMemory numSlotsOf: arg1.
+	arg2Size := objectMemory numSlotsOf: arg2.
+	resSize := objectMemory numSlotsOf: res.
 
-	(objectMemory isSixtyFourBitIndexableOop: arg1)
-		ifFalse: [ ^ self primitiveFailFor: PrimErrBadArgument ].
-	(objectMemory isSixtyFourBitIndexableOop: arg2)
-		ifFalse: [ ^ self primitiveFailFor: PrimErrBadArgument ].
-	(objectMemory isSixtyFourBitIndexableOop: res)
-		ifFalse: [ ^ self primitiveFailFor: PrimErrBadArgument ].
+	((objectMemory isSixtyFourBitIndexableOop: arg1) and: [ 
+		 (objectMemory isSixtyFourBitIndexableOop: arg2) and: [ 
+			 objectMemory isSixtyFourBitIndexableOop: res ] ]) ifFalse: [ 
+		^ self primitiveFailFor: PrimErrBadArgument ].
 
-	0 to: arraySize - 1 do: [ :i | 
+	(resSize > arg1Size or: [ resSize > arg2Size ]) ifTrue: [ 
+		^ self primitiveFailFor: PrimErrBadArgument ].
+
+	0 to: resSize - 1 do: [ :i | 
 		| tmp |
 		tmp := (objectMemory fetchFloat64: i ofObject: arg1)
 		       + (objectMemory fetchFloat64: i ofObject: arg2).
