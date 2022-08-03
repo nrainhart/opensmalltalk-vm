@@ -2994,6 +2994,17 @@ SimpleStackBasedCogit >> isCallerSavedReg: reg [
 	^self register: reg isInMask: CallerSavedRegisterMask
 ]
 
+{ #category : #'mapped inline primitive generators - vectorial' }
+SimpleStackBasedCogit >> jumpIfNotSixtyFourBitIndexableArray: arrayReg scratchReg: scratch1 scratchReg: scratch2 [
+
+	self
+		genGetFormatOf: arrayReg
+		into: scratch1
+		leastSignificantHalfOfBaseHeaderIntoScratch: scratch2.
+	self CmpCq: objectMemory sixtyFourBitIndexableFormat R: scratch1.
+	^ self JumpNonZero: 0
+]
+
 { #category : #'method introspection' }
 SimpleStackBasedCogit >> mapPCDataFor: cogMethod into: arrayObj [
 	"Collect the branch and send data for cogMethod, storing it into arrayObj."

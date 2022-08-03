@@ -2200,13 +2200,10 @@ StackToRegisterMappingCogit >> genPushFloat64ArrayToRegister [
 		                    (((self registerMaskFor: arrayReg) bitOr:
 			                      (self registerMaskFor: indexReg)) bitOr:
 			                     (self registerMaskFor: formatReg)).
-	self
-		genGetFormatOf: arrayReg
-		into: formatReg
-		leastSignificantHalfOfBaseHeaderIntoScratch: nSlotsOrBytesReg. "TODO this result is not used, pass different register?"
+	jumpIsPointers := self jumpIfNotSixtyFourBitIndexableArray: arrayReg
+	 scratchReg: formatReg
+	 scratchReg: nSlotsOrBytesReg.
 	self genGetNumSlotsOf: arrayReg into: nSlotsOrBytesReg.
-	self CmpCq: objectMemory sixtyFourBitIndexableFormat R: formatReg.
-	jumpIsPointers := self JumpBelow: 0.
 	"First index is in bounds"
 	accessedElementByteSize := 8.
 	self
@@ -2867,13 +2864,10 @@ StackToRegisterMappingCogit >> genStoreFloat64RegisterIntoArray [
 		                    (((self registerMaskFor: arrayReg) bitOr:
 			                      (self registerMaskFor: indexReg)) bitOr:
 			                     (self registerMaskFor: formatReg)).
-	self
-		genGetFormatOf: arrayReg
-		into: formatReg
-		leastSignificantHalfOfBaseHeaderIntoScratch: nSlotsOrBytesReg. "TODO this result is not used, pass different register?"
+	jumpIsPointers := self jumpIfNotSixtyFourBitIndexableArray: arrayReg
+	 scratchReg: formatReg
+	 scratchReg: nSlotsOrBytesReg.
 	self genGetNumSlotsOf: arrayReg into: nSlotsOrBytesReg.
-	self CmpCq: objectMemory sixtyFourBitIndexableFormat R: formatReg.
-	jumpIsPointers := self JumpBelow: 0.
 	"First index is in bounds"
 	accessedElementByteSize := 8.
 	self
