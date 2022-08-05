@@ -1160,6 +1160,7 @@ Cogit class >> initializePrimitiveTable [
 						
 		"SIMD primitives"
 		(574 genPrimitiveFloat64ArrayAdd 3)
+		(575 genPrimitiveFloat32ArrayAdd 3)
 
 		"Pinned object creation primitives"
 		"(598 primitiveNewPinned)"

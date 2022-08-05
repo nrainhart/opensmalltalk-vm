@@ -1243,6 +1243,86 @@ CogObjectRepresentationForSpur >> genPrimitiveAtPut [
 ]
 
 { #category : #'primitive generators' }
+CogObjectRepresentationForSpur >> genPrimitiveFloat32ArrayAdd [
+
+	| loop exitLoop arg1IsSmaller arg2IsSmaller jumpResIsNotThirtyTwoBitIndexable jumpArg1IsNotThirtyTwoBitIndexable jumpArg2IsNotThirtyBitIndexable |
+	cogit
+		genStackArgAt: 0 into: ClassReg; "result"
+		genStackArgAt: 1 into: Arg1Reg; "arg2"
+		genStackArgAt: 2 into: Arg0Reg. "arg1"
+	
+	jumpResIsNotThirtyTwoBitIndexable := cogit
+		                                     jumpIfNotThirtyTwoBitIndexableArray: 
+		                                     ClassReg
+		                                     scratchReg: Extra0Reg
+		                                     scratchReg: Extra1Reg.
+	jumpArg2IsNotThirtyBitIndexable := cogit
+		                                      jumpIfNotThirtyTwoBitIndexableArray:
+		                                      Arg1Reg
+		                                      scratchReg: Extra0Reg
+		                                      scratchReg: Extra1Reg.
+	jumpArg1IsNotThirtyTwoBitIndexable := cogit
+		                                      jumpIfNotThirtyTwoBitIndexableArray:
+		                                      Arg0Reg
+		                                      scratchReg: Extra0Reg
+		                                      scratchReg: Extra1Reg.
+
+	cogit genGetNumSlotsOf: ClassReg into: TempReg.
+	cogit genGetNumSlotsOf: Arg1Reg into: Extra1Reg.
+	cogit genGetNumSlotsOf: Arg0Reg into: Extra0Reg.
+	
+	"Slots are word-sized, so multiply by two. Note: this only works in 64-bit systems"
+	cogit AddR: TempReg R: TempReg."TODO: multiply by 2 instead?"
+	cogit AddR: Extra1Reg R: Extra1Reg.
+	cogit AddR: Extra0Reg R: Extra0Reg.
+
+	"Check that result does not have more elements than operands"
+	cogit CmpR: TempReg R: Extra0Reg.
+	arg2IsSmaller := cogit JumpLess: 0.
+	cogit CmpR: TempReg R: Extra1Reg.
+	arg1IsSmaller := cogit JumpLess: 0.
+
+	"return result array (need to copy register now since it's modified afterwards)"
+	cogit MoveR: ClassReg R: ReceiverResultReg.
+
+	"Initialize loop variable"
+	cogit LogicalShiftRightCq: 2 R: TempReg.
+
+	cogit
+		AddCq: objectMemory baseHeaderSize R: Arg0Reg;
+		AddCq: objectMemory baseHeaderSize R: Arg1Reg;
+		AddCq: objectMemory baseHeaderSize R: ClassReg.
+
+	loop := cogit Label.
+
+	cogit CmpCq: 0 R: TempReg.
+	exitLoop := cogit JumpLessOrEqual: 0.
+
+	cogit
+		Ld1S: 32 Vr: VReg0 R: Arg0Reg Mw: 16;
+		Ld1S: 32 Vr: VReg1 R: Arg1Reg Mw: 16;
+		FaddS: 32 Rv: VReg0 Rv: VReg1 Rv: VReg2;
+		St1S: 32 Vr: VReg2 R: ClassReg Mw: 16.
+
+	cogit
+		SubCq: 1 R: TempReg;
+		Jump: loop.
+
+	exitLoop jmpTarget: cogit Label.
+
+	cogit genPrimReturn.
+
+	jumpResIsNotThirtyTwoBitIndexable jmpTarget:
+		(jumpArg1IsNotThirtyTwoBitIndexable jmpTarget:
+			 (jumpArg2IsNotThirtyBitIndexable jmpTarget:
+				  (arg1IsSmaller jmpTarget: (arg2IsSmaller jmpTarget: cogit Label)))). "TODO fail !!!"
+
+	cogit genPrimReturn.
+
+	^ 0
+]
+
+{ #category : #'primitive generators' }
 CogObjectRepresentationForSpur >> genPrimitiveFloat64ArrayAdd [
 
 	| loop exitLoop arg1IsSmaller arg2IsSmaller jumpResIsNotSixtyFourBitIndexable jumpArg1IsNotSixtyFourBitIndexable jumpArg2IsNotSixtyFourBitIndexable |
