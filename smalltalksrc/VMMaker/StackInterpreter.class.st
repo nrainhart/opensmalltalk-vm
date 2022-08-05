@@ -1329,9 +1329,10 @@ StackInterpreter class >> initializePrimitiveTable [
 
 		"SIMD primitives"
 		(574 primitiveFloat64ArrayAdd)
+		(575 primitiveFloat32ArrayAdd)
 
 		"Unassigned Primitives"
-		(575 597 primitiveFail)
+		(576 597 primitiveFail)
 
 		"Pinned object creation primitives"
 		(598 primitiveNewPinned)
@@ -11289,6 +11290,39 @@ StackInterpreter >> primitiveEventProcessingControl [
 							^self]].
 		 ^self pop: 2 thenPushBool: enabled].
 	self primitiveFailFor: PrimErrBadNumArgs
+]
+
+{ #category : #'simd primitives' }
+StackInterpreter >> primitiveFloat32ArrayAdd [
+
+	<var: #rcvr type: #'double *'>
+	<var: #arg type: #'double *'>
+	| arg1 arg2 res arg1Size arg2Size resSize |
+	arg1 := self stackValue: 2.
+	arg2 := self stackValue: 1.
+	res := self stackTop.
+	"Slots are word-sized, so multiply by two. Note: this only works in 64-bit systems"
+	arg1Size :=  2 * (objectMemory numSlotsOf: arg1).
+	arg2Size := 2 * (objectMemory numSlotsOf: arg2).
+	resSize := 2 * (objectMemory numSlotsOf: res).
+
+	((objectMemory isThirtyTwoBitIndexableOop: arg1) and: [ 
+		 (objectMemory isThirtyTwoBitIndexableOop: arg2) and: [ 
+			 objectMemory isThirtyTwoBitIndexableOop: res ] ]) ifFalse: [ 
+		^ self primitiveFailFor: PrimErrBadArgument ].
+
+	(resSize > arg1Size or: [ resSize > arg2Size ]) ifTrue: [ 
+		^ self primitiveFailFor: PrimErrBadArgument ].
+
+	0 to: resSize - 1 do: [ :i | 
+		| tmp |
+		tmp := (objectMemory fetchFloat32: i ofObject: arg1)
+		       + (objectMemory fetchFloat32: i ofObject: arg2).
+		objectMemory storeFloat32: i ofObject: res withValue: tmp ].
+
+	self successful
+		ifTrue: [ self pop: 4 thenPush: res ]
+		ifFalse: [ self primitiveFailFor: PrimErrBadArgument ]
 ]
 
 { #category : #'simd primitives' }

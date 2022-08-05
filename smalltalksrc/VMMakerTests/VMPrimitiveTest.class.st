@@ -1577,6 +1577,135 @@ VMPrimitiveTest >> testPrimitiveEqualWithTypeErrorOnSecondOperand [
 	self assert: interpreter failed. 
 ]
 
+{ #category : #'tests - primitiveAdd - Float32Array' }
+VMPrimitiveTest >> testPrimitiveFloat32ArrayAdd [
+
+	| x y z result firstTerm size |
+	firstTerm := 1.0 to: 4.0.
+	size := firstTerm size.
+
+	x := self new32BitIndexableFromArray: firstTerm.
+	y := self new32BitIndexableFromArray: (firstTerm collect: [:i | i * 10]).
+	z := self new32BitIndexableOfSize: size.
+	
+	interpreter push: x.
+	interpreter push: y.
+	interpreter push: z.
+	interpreter primitiveFloat32ArrayAdd.
+	
+	self deny: interpreter failed.
+	
+	result := interpreter stackTop.
+	
+	self assert: (memory fetchFloat32: 0 ofObject: result) equals: 11.0.
+	self assert: (memory fetchFloat32: 1 ofObject: result) equals: 22.0.
+	self assert: (memory fetchFloat32: 2 ofObject: result) equals: 33.0.
+	self assert: (memory fetchFloat32: 3 ofObject: result) equals: 44.0.
+]
+
+{ #category : #'tests - primitiveAdd - Float32Array' }
+VMPrimitiveTest >> testPrimitiveFloat32ArrayAddFailsIfFirstOperandIsNotFloat32Array [
+
+	| x y z result firstTerm size |
+	firstTerm := 1.0 to: 4.0.
+	size := firstTerm size.
+
+	x := self new64BitIndexableFromArray: firstTerm.
+	y := self new32BitIndexableFromArray: (firstTerm collect: [:i | i * 10]).
+	z := self new32BitIndexableOfSize: size.
+	
+	interpreter push: x.
+	interpreter push: y.
+	interpreter push: z.
+	interpreter primitiveFloat32ArrayAdd.
+	
+	self assert: interpreter failed.
+	
+	result := interpreter stackTop.
+	
+	self assert: (memory fetchFloat32: 0 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 1 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 2 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 3 ofObject: result) equals: 0.0.
+]
+
+{ #category : #'tests - primitiveAdd - Float32Array' }
+VMPrimitiveTest >> testPrimitiveFloat32ArrayAddFailsIfOperandArrayIsSmallerThanResultArray [
+
+	| x y z result firstTerm size |
+	firstTerm := 1.0 to: 4.0.
+	size := firstTerm size.
+
+	x := self new32BitIndexableFromArray: firstTerm.
+	y := self new32BitIndexableFromArray: (firstTerm collect: [:i | i * 10]).
+	z := self new32BitIndexableOfSize: size + 1.
+	
+	interpreter push: x.
+	interpreter push: y.
+	interpreter push: z.
+	interpreter primitiveFloat32ArrayAdd.
+	
+	self assert: interpreter failed.
+	
+	result := interpreter stackTop.
+	
+	self assert: (memory fetchFloat32: 0 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 1 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 2 ofObject: result) equals: 0.0.
+]
+
+{ #category : #'tests - primitiveAdd - Float32Array' }
+VMPrimitiveTest >> testPrimitiveFloat32ArrayAddFailsIfResultArgIsNotFloat32Array [
+
+	| x y z result firstTerm size |
+	firstTerm := 1.0 to: 4.0.
+	size := firstTerm size.
+
+	x := self new32BitIndexableFromArray: firstTerm.
+	y := self new32BitIndexableFromArray: (firstTerm collect: [:i | i * 10]).
+	z := self new64BitIndexableOfSize: size.
+	
+	interpreter push: x.
+	interpreter push: y.
+	interpreter push: z.
+	interpreter primitiveFloat32ArrayAdd.
+	
+	self assert: interpreter failed.
+	
+	result := interpreter stackTop.
+	
+	self assert: (memory fetchFloat32: 0 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 1 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 2 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 3 ofObject: result) equals: 0.0.
+]
+
+{ #category : #'tests - primitiveAdd - Float32Array' }
+VMPrimitiveTest >> testPrimitiveFloat32ArrayAddFailsIfSecondOperandIsNotFloat32Array [
+
+	| x y z result firstTerm size |
+	firstTerm := 1.0 to: 4.0.
+	size := firstTerm size.
+
+	x := self new32BitIndexableFromArray: firstTerm.
+	y := self new64BitIndexableFromArray: (firstTerm collect: [:i | i * 10]).
+	z := self new32BitIndexableOfSize: size.
+	
+	interpreter push: x.
+	interpreter push: y.
+	interpreter push: z.
+	interpreter primitiveFloat32ArrayAdd.
+	
+	self assert: interpreter failed.
+	
+	result := interpreter stackTop.
+	
+	self assert: (memory fetchFloat32: 0 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 1 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 2 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 3 ofObject: result) equals: 0.0.
+]
+
 { #category : #'tests - primitiveAdd - Float64Array' }
 VMPrimitiveTest >> testPrimitiveFloat64ArrayAdd [
 
