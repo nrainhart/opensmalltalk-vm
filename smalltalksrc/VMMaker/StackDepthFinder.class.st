@@ -188,6 +188,12 @@ StackDepthFinder >> methodReturnTop [
 	self resetStackAfterBranchOrReturn
 ]
 
+{ #category : #'extended instruction decoding' }
+StackDepthFinder >> mulFloat32Vector [
+
+	self drop.
+]
+
 { #category : #accessing }
 StackDepthFinder >> pc [
 

@@ -888,6 +888,7 @@ CogX64Compiler >> computeMaximumSize [
 	
 		[FaddSRvRvRv] -> [ ^10 ].
 		[FsubSRvRvRv] -> [ ^10 ].
+		[FmulSRvRvRv] -> [ ^10 ].
 
 		}.
 	^0 "to keep C compiler quiet"

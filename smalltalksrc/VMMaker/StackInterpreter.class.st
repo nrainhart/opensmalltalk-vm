@@ -9932,7 +9932,8 @@ StackInterpreter >> mappedInlinePrimitive: primIndex [
 		[3]   -> [self addFloat32VectorBytecode].
 		[4]   -> [self pushFloat32ArrayToRegisterBytecode].
 		[5]   -> [self storeFloat32RegisterIntoArrayBytecode].
-		[6]   -> [self subFloat64VectorBytecode]
+		[6]   -> [self subFloat64VectorBytecode].
+		[7]   -> [self mulFloat32VectorBytecode].
 	} otherwise: [self unknownInlinePrimitive]
 	
 
@@ -10706,6 +10707,35 @@ StackInterpreter >> moveFramesIn: oldPage through: theFP toPage: newPage [
 	 fpInNewPage := offsetCallerFP.
 	 fpInNewPage ~= 0] whileTrue.
 	^newFP
+]
+
+{ #category : #'simd bytecodes' }
+StackInterpreter >> mulFloat32VectorBytecode [
+
+	<var: #tmp type: #float>
+	| arg rcv res tmp |
+	arg := self stackValue: 0.
+	rcv := self stackValue: 1.
+
+	res := self eeInstantiateFloat32Register.
+
+	tmp := (objectMemory fetchFloat32: 0 ofObject: arg)
+	       * (objectMemory fetchFloat32: 0 ofObject: rcv).
+	objectMemory storeFloat32: 0 ofObject: res withValue: tmp.
+
+	tmp := (objectMemory fetchFloat32: 1 ofObject: arg)
+	       * (objectMemory fetchFloat32: 1 ofObject: rcv).
+	objectMemory storeFloat32: 1 ofObject: res withValue: tmp.
+
+	tmp := (objectMemory fetchFloat32: 2 ofObject: arg)
+	       * (objectMemory fetchFloat32: 2 ofObject: rcv).
+	objectMemory storeFloat32: 2 ofObject: res withValue: tmp.
+
+	tmp := (objectMemory fetchFloat32: 3 ofObject: arg)
+	       * (objectMemory fetchFloat32: 3 ofObject: rcv).
+	objectMemory storeFloat32: 3 ofObject: res withValue: tmp.
+
+	self pop: 2 thenPush: res
 ]
 
 { #category : #'internal interpreter access' }

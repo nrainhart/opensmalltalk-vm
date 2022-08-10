@@ -2019,6 +2019,16 @@ Cogit >> Fill32: value [
 ]
 
 { #category : #'abstract instructions' }
+Cogit >> FmulS: aSize Rv: vectorRegister1 Rv: vectorRegister2 Rv: vectorRegisterSum [ 
+	^ self
+		  gen: FmulSRvRvRv
+		  operand: aSize 
+		  operand: vectorRegister1
+		  operand: vectorRegister2 
+		  operand: vectorRegisterSum
+]
+
+{ #category : #'abstract instructions' }
 Cogit >> FsubS: aSize Rv: minuendVectorRegister Rv: subtrahendVectorRegister Rv: vectorRegisterSum [ 
 	^ self
 		  gen: FsubSRvRvRv

@@ -12,6 +12,7 @@ Class {
 		'AddRsRs',
 		'AddcCqR',
 		'AddcRR',
+		'AddvSRvRv',
 		'AlignedSt1VrRMw',
 		'AlignmentNops',
 		'AndCqR',
@@ -42,6 +43,7 @@ Class {
 		'Fill32',
 		'FirstJump',
 		'FirstShortJump',
+		'FmulSRvRvRv',
 		'FsubSRvRvRv',
 		'Jump',
 		'JumpAbove',
@@ -117,6 +119,7 @@ Class {
 		'MoveRdRd',
 		'MoveRsM32r',
 		'MoveRsRs',
+		'MoveSIRvR',
 		'MoveX16rRR',
 		'MoveX32rRR',
 		'MoveXbrRR',
@@ -338,6 +341,9 @@ CogRTLOpcodes class >> initialize [
 						Ld1VrRMw
 						FaddSRvRvRv
 						FsubSRvRvRv
+						FmulSRvRvRv
+						AddvSRvRv
+						MoveSsSdRvR
 
 						LastRTLCode).
 

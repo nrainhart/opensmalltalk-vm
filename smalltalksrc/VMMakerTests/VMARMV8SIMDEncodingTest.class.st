@@ -75,6 +75,16 @@ VMARMV8SIMDEncodingTest >> testEncodeFaddWith64BitLanes [
 ]
 
 { #category : #tests }
+VMARMV8SIMDEncodingTest >> testEncodeFmulWith32BitLanes [
+
+	self compile: [ cogit FmulS: 32 Rv: 0 Rv: 1 Rv: 2 ].
+	
+	self
+		assert: (self armInstructionAt: 1) assemblyCodeString
+		equals: 'fmul	v2.4s, v0.4s, v1.4s'
+]
+
+{ #category : #tests }
 VMARMV8SIMDEncodingTest >> testEncodeFsubWith64BitLanes [
 
 	self compile: [ cogit FsubS: 64 Rv: 0 Rv: 1 Rv: 2 ].

@@ -1266,6 +1266,9 @@ CogARMv8Compiler >> computeMaximumSize [
 		[Ld1VrRMw] -> [ ^ 4 ].
 		[FaddSRvRvRv] -> [ ^ 4 ].
 		[FsubSRvRvRv] -> [ ^ 4 ].
+		[FmulSRvRvRv] -> [ ^ 4 ].
+		[AddvSRvRv] -> [ ^ 4 ].
+		[MoveSIRvR] -> [ ^ 4 ].
 		}.
 	^0 "to keep C compiler quiet"
 
@@ -1891,6 +1894,33 @@ CogARMv8Compiler >> concretizeFill32 [
 	"fill with operand 0 according to the processor's endianness"
 
 	self machineCodeAt: 0 put: (operands at: 0).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretizing }
+CogARMv8Compiler >> concretizeFmulSRvRvRv [
+
+	"Will get inlined into concretizeAt: switch."
+
+	<inline: true>
+
+	| size vectorReg1 vectorReg2 vectorRegSum t q instruction |
+
+	size := operands at: 0.
+	vectorReg1 := operands at: 1.
+	vectorReg2 := operands at: 2.
+	vectorRegSum := operands at: 3.
+
+	size = 64 
+		ifTrue: [ t := 1. q := 1 ]
+		ifFalse: [ size = 32 ifTrue: [ t := 0. q := 1]
+			ifFalse: [self notYetImplemented]
+		].
+
+	instruction := self mulT: t q: q term1: vectorReg1 term2: vectorReg2 dest: vectorRegSum.
+
+	self machineCodeAt: 0 put: instruction.
+
 	^ machineCodeSize := 4
 ]
 
@@ -3543,6 +3573,9 @@ CogARMv8Compiler >> dispatchConcretize [
 		[ Ld1VrRMw ] -> [ ^ self concretizeLd1VrRMw ].
 		[ FaddSRvRvRv ] -> [ ^ self concretizeFaddSRvRvRv ].
 		[ FsubSRvRvRv ] -> [ ^ self concretizeFsubSRvRvRv ].
+		[ FmulSRvRvRv ] -> [ ^ self concretizeFmulSRvRvRv ].
+		[ AddvSRvRv ] -> [ ^ self concretizeAddvSRvRv ].
+		[ MoveSIRvR ] -> [ ^ self concretizeMoveSsSdRvR ].
 		}
 ]
 
@@ -5298,6 +5331,28 @@ CogARMv8Compiler >> mulSize: is64bits firstRegister: registerA secondRegister: r
 		bitOr: (16r1f << 10
 		bitOr: (((registerA bitAnd: 16r1f) << 5)
 		bitOr: (destinationRegister bitAnd: 16r1f)))))
+]
+
+{ #category : #adding }
+CogARMv8Compiler >> mulT: t q: q term1: vectorReg1 term2: vectorReg2 dest: vectorRegSum [ 
+
+	"
+	C7.2.49 FMUL (vector)
+	
+	FMUL <Vd>.<T>, <Vn>.<T>, <Vm>.<T>
+
+	This instruction multiplies corresponding floating-point values in the vectors in
+the two source SIMD&FP registers, places the result in a vector, and writes the vector to the destination SIMD&FP register.
+	All the values in this instruction are floating-point values."
+	
+	^ q << 30
+		bitOr: (2r101110 << 24
+		bitOr: ((t bitAnd: 1) << 22
+		bitOr: (1 << 21
+		bitOr: ((vectorReg2 bitAnd: 2r11111) << 16
+		bitOr: (2r110111 << 10
+		bitOr: ((vectorReg1 bitAnd: 2r11111) << 5
+		bitOr: (vectorRegSum bitAnd: 2r11111)))))))
 ]
 
 { #category : #printing }
