@@ -1953,7 +1953,8 @@ StackToRegisterMappingCogit >> genMappedInlinePrimitive: primIndex [
 				          ([ 3 ] -> [ self genAddFloat32Vector ]).
 				          ([ 4 ] -> [ self genPushFloat32ArrayToRegister ]).
 				          ([ 5 ] -> [ self genStoreFloat32RegisterIntoArray ]).
-				          ([ 6 ] -> [ self genSubFloat64Vector ]) }
+				          ([ 6 ] -> [ self genSubFloat64Vector ]).
+				          ([ 7 ] -> [ self genMulFloat32Vector ]) }
 		          otherwise: [ EncounteredUnknownBytecode ].
 	"These primitives may end up calling a message send if preconditions are not met. Thus, the
 	bytecode needs to be annotated with `isMapped`, and each primitive must be annotated"
