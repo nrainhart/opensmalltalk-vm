@@ -1845,7 +1845,7 @@ CogARMv8Compiler >> concretizeDupRVr [
 
 	size = 64 
 		ifTrue: [ t := 2r1000. q := 1 ]
-		ifFalse: [ self notYetImplemented ].
+		ifFalse: [ size = 32 ifTrue: [ t := 2r100. q := 1 ] ifFalse: [self notYetImplemented] ].
 
 	instruction := self dupT: t q: q source: srcReg dest: destReg.
 
