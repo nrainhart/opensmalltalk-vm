@@ -45,6 +45,16 @@ VMARMV8SIMDEncodingTest >> jitOptions [
 ]
 
 { #category : #tests }
+VMARMV8SIMDEncodingTest >> testEncodeAddvWith32BitLanes [
+
+	self compile: [ cogit AddvS: 32 Rv: 1 Rv: 0 ].
+	
+	self
+		assert: (self armInstructionAt: 1) assemblyCodeString
+		equals: 'addv	s0, v1.4s'
+]
+
+{ #category : #tests }
 VMARMV8SIMDEncodingTest >> testEncodeDupWith64BitLanes [
 
 	self compile: [ cogit DupS: 64 R: 3 Vr: 0 ].

@@ -1704,6 +1704,15 @@ Cogit >> AddcR: reg1 R: reg2 [
 ]
 
 { #category : #'abstract instructions' }
+Cogit >> AddvS: aSize Rv: sourceReg Rv: destinationReg [
+	^ self
+		  gen: AddvSRvRv
+		  operand: aSize 
+		  operand: sourceReg
+		  operand: destinationReg
+]
+
+{ #category : #'abstract instructions' }
 Cogit >> AlignedSt1S: aSize Vr: aVectorRegister R: aMemoryRegister Mw: anOffset [ 
 	^ self
 		  gen: AlignedSt1VrRMw

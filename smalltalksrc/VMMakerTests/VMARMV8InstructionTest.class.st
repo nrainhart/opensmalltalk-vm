@@ -22,6 +22,27 @@ VMARMV8InstructionTest >> generateCaptureCStackPointers [
 ]
 
 { #category : #tests }
+VMARMV8InstructionTest >> testAddv [
+
+	| result |
+		
+	self compile: [
+		cogit MoveCq: 1 R: 0.
+		cogit DupS: 32 R: 0 Vr: 0.
+		cogit AddvS: 32 Rv: 0 Rv: 1].
+
+	self runGeneratedCode.
+	
+	result := machineSimulator v1.
+	self assert: (result int32AtOffset: 0) equals: 4.
+	
+
+
+
+
+]
+
+{ #category : #tests }
 VMARMV8InstructionTest >> testFcvt32BitTo64Bit [
 
 	| result |

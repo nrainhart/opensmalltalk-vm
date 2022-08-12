@@ -474,6 +474,25 @@ CogARMv8Compiler >> addsSize: is64Bits sourceRegister: leftRegister immediate12B
 		shifted: shiftedFlag destinationRegister: destinationRegister
 ]
 
+{ #category : #adding }
+CogARMv8Compiler >> addvT: t q: q sourceReg: sourceReg destinationReg: destinationReg [
+
+	"
+	C7.2.6 ADDV
+	
+	ADDV <V><d>, <Vn>.<T>
+
+	Add across Vector. This instruction adds every vector element in the source SIMD&FP register together, and writes
+the scalar result to the destination SIMD&FP register."
+	
+	^ q << 30
+		bitOr: (2r1110 << 24
+		bitOr: ((t bitAnd: 11) << 22
+		bitOr: (2r110001101110 << 10
+		bitOr: ((sourceReg bitAnd: 2r11111) << 5
+		bitOr: (destinationReg bitAnd: 2r11111)))))
+]
+
 { #category : #'as yet unclassified' }
 CogARMv8Compiler >> adrSignedImmediate21BitsValue: signedImmediate21bitValue destinationRegister: destinationRegister [
 
@@ -1268,7 +1287,7 @@ CogARMv8Compiler >> computeMaximumSize [
 		[FsubSRvRvRv] -> [ ^ 4 ].
 		[FmulSRvRvRv] -> [ ^ 4 ].
 		[AddvSRvRv] -> [ ^ 4 ].
-		[MoveSsSdRvR] -> [ ^ 4 ].
+		[MoveSIRvR] -> [ ^ 4 ].
 	   [FcvtSsSdIRvRv] -> [ ^ 4 ].
 		}.
 	^0 "to keep C compiler quiet"
@@ -1397,6 +1416,30 @@ CogARMv8Compiler >> concretizeAddRdRd [
 			 firstSourceRegister: regLHS
 			 secondSourceRegister: regRHS
 			 destinationRegister: regLHS).
+
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretizing }
+CogARMv8Compiler >> concretizeAddvSRvRv [
+
+	"Will get inlined into concretizeAt: switch."
+
+	<inline: true>
+
+	| size sourceReg destinationReg t q instruction |
+
+	size := operands at: 0.
+	sourceReg := operands at: 1.
+	destinationReg := operands at: 2.
+
+	size = 32 
+		ifTrue: [ t := 10. q := 1 ]
+		ifFalse: [self notYetImplemented].
+
+	instruction := self addvT: t q: q sourceReg: sourceReg destinationReg: destinationReg.
+
+	self machineCodeAt: 0 put: instruction.
 
 	^ machineCodeSize := 4
 ]
@@ -3629,7 +3672,7 @@ CogARMv8Compiler >> dispatchConcretize [
 		[ FsubSRvRvRv ] -> [ ^ self concretizeFsubSRvRvRv ].
 		[ FmulSRvRvRv ] -> [ ^ self concretizeFmulSRvRvRv ].
 		[ AddvSRvRv ] -> [ ^ self concretizeAddvSRvRv ].
-		[ MoveSsSdRvR ] -> [ ^ self concretizeMoveSIRvR ].
+		[ MoveSIRvR ] -> [ ^ self concretizeMoveSIRvR ].
 		[ FcvtSsSdIRvRv ] -> [ ^ self concretizeFcvtSsSdIRvRv ].
 		}
 ]
