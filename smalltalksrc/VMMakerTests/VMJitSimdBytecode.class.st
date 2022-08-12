@@ -273,7 +273,7 @@ VMJitSimdBytecode >> testPushFloat32RegisterElementBytecode [
 	array := self new32BitIndexableFromArray: #(5.0 3.0 2.0 1.0).
 	arguments := { memory integerObjectOf: 1.  array. memory integerObjectOf: 0 }.		
 		
-	sentSelector := #-."TODO is this necessary?"
+	sentSelector := #-.
 	self buildStackFrame.
 	
 	primitiveAddress := self compile: [

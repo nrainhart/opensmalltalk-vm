@@ -276,6 +276,12 @@ StackDepthFinder >> pushFloat32ArrayToRegister [
 ]
 
 { #category : #'extended instruction decoding' }
+StackDepthFinder >> pushFloat32RegisterElement [
+
+	self drop.
+]
+
+{ #category : #'extended instruction decoding' }
 StackDepthFinder >> pushFloat64ArrayToRegister [
 
 	self drop.

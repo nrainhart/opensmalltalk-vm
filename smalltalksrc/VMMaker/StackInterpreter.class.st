@@ -9934,6 +9934,7 @@ StackInterpreter >> mappedInlinePrimitive: primIndex [
 		[5]   -> [self storeFloat32RegisterIntoArrayBytecode].
 		[6]   -> [self subFloat64VectorBytecode].
 		[7]   -> [self mulFloat32VectorBytecode].
+		[8]   -> [self pushFloat32RegisterElementBytecode].
 	} otherwise: [self unknownInlinePrimitive]
 	
 
