@@ -758,6 +758,8 @@ InterpreterPrimitives >> primitiveAdoptInstance [
 		and: [(objectMemory isImmediate: rcvr)
 			or: [(self objCouldBeClassObj: rcvr) not]]]) ifTrue:
 		[^self primitiveFailFor: PrimErrBadArgument].
+	
+	(objectMemory isForwarded: arg) ifTrue: [ ^self primitiveFailFor: PrimErrBadArgument ].
 
 	err := objectMemory changeClassOf: arg to: rcvr.
 	err = 0

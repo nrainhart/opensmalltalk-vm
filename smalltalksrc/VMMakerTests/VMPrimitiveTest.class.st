@@ -228,6 +228,24 @@ VMPrimitiveTest >> testPrimitiveAdoptInstanceConvertsByteArrayToFloat64Array [
 	self assert: (memory fetchFloat64: 1 ofObject: array) equals: 1.0.
 ]
 
+{ #category : #'tests - primitiveSubtract' }
+VMPrimitiveTest >> testPrimitiveAdoptInstanceFailsIfObjectIsForwarder [
+
+	|array|
+	self installFloat64RegisterClass.
+	array := self new8BitIndexableFromArray: #(0 0 0 0 0 0 240 63 0 0 0 0 0 0 240 63).
+	memory pinObject: array.
+	
+	self assert: (memory isForwarded: array).
+	
+	interpreter push: (memory splObj: ClassFloat64Register).
+	interpreter push: array.
+	
+	interpreter primitiveAdoptInstance. 
+	
+	self assert: (interpreter failed).
+]
+
 { #category : #'tests - become' }
 VMPrimitiveTest >> testPrimitiveArrayBecomeCreatesForwardersForObjectsOfDifferentSize [
 	| class1 class2 object1 object2 array1 array2 |
