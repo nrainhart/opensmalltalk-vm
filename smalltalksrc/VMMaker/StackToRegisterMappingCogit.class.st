@@ -2199,6 +2199,40 @@ StackToRegisterMappingCogit >> genPushFloat32ArrayToRegister [
 ]
 
 { #category : #'mapped inline primitive generators - vectorial' }
+StackToRegisterMappingCogit >> genPushFloat32RegisterElement [
+	| vectorReg indexReg elementReg |
+	
+	objectMemory wordSize = 4 ifTrue: [ ^ EncounteredUnknownBytecode ].
+	
+	vectorReg := self allocateVectorRegForStackEntryAt: 0 notConflictingWith: 0.
+	indexReg := self allocateRegForStackEntryAt: 1 notConflictingWith: 0.
+	
+	self ssTop moveToVectorReg: vectorReg.
+	self ssPop: 1.
+	
+	self ssTop moveToReg: indexReg.
+	self ssPop: 1.
+	
+	elementReg := self allocateRegNotConflictingWith: (self registerMaskFor: indexReg).
+	
+	self ssPushRegister: elementReg.
+	self ssTop moveToReg: elementReg.
+
+	"The index is a SmallInteger, so it is shifted left 3 and plus 1. So, as we need to untag it and then shift it 2 (for getting number of bytes from number of elements), we just shift 1. 
+	Only valid in 32bits Lanes and 64bits machine."
+
+	self assert: (objectMemory wordSize = 8).
+	
+	self LogicalShiftRightCq: 1 R: indexReg.
+	
+	self FcvtSs: 32 Sd: 64 Rv: vectorReg Rv: vectorReg.
+	self MoveS: 64 I: indexReg Rv: vectorReg R: elementReg.
+	
+	"Returns 0 if worked"
+	^0
+]
+
+{ #category : #'mapped inline primitive generators - vectorial' }
 StackToRegisterMappingCogit >> genPushFloat64ArrayToRegister [
 
 	| arrayReg indexReg vectorReg jumpImmediate jumpBadIndex formatReg nSlotsOrBytesReg jumpIsPointers accessedElementByteSize jumpSmaller jumpOutOfBounds secondIndexReg secondJumpOutOfBounds end |

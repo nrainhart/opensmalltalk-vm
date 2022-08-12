@@ -120,7 +120,7 @@ Class {
 		'MoveRdRd',
 		'MoveRsM32r',
 		'MoveRsRs',
-		'MoveSsSdRvR',
+		'MoveSIRvR',
 		'MoveX16rRR',
 		'MoveX32rRR',
 		'MoveXbrRR',
@@ -344,7 +344,7 @@ CogRTLOpcodes class >> initialize [
 						FsubSRvRvRv
 						FmulSRvRvRv
 						AddvSRvRv
-						MoveSsSdRvR
+						MoveSIRvR
 						FcvtSsSdIRvRv
 
 						LastRTLCode).

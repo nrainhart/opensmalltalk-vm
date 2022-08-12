@@ -266,6 +266,39 @@ VMJitSimdBytecode >> testPushArrayToRegisterPushesArrayChunkIntoSimulatedStack [
 ]
 
 { #category : #tests }
+VMJitSimdBytecode >> testPushFloat32RegisterElementBytecode [
+
+	| endInstruction primitiveAddress array entry register |
+	
+	array := self new32BitIndexableFromArray: #(5.0 3.0 2.0 1.0).
+	arguments := { memory integerObjectOf: 1.  array. memory integerObjectOf: 0 }.		
+		
+	sentSelector := #-."TODO is this necessary?"
+	self buildStackFrame.
+	
+	primitiveAddress := self compile: [
+								 cogit genPushTemporaryVariable: 0.
+								 cogit genPushTemporaryVariable: 2.
+								 cogit genPushTemporaryVariable: 1.		
+								 cogit genPushFloat32ArrayToRegister.
+								 cogit genPushFloat32RegisterElement.		
+		                    "If the primitive fails it continues, so we need to have an instruction to detect the end"
+		                    endInstruction := cogit Stop ].
+
+	self runFrom: primitiveAddress until: endInstruction address.
+	
+	entry := cogit ssTop.
+	
+	self assert: (entry type) equals: SSRegister.
+	self assert: (entry register) equals: 20.
+	
+	register := machineSimulator x20.
+	
+	self assert: (Float fromIEEE64BitWord: register) equals: 3.0.
+
+]
+
+{ #category : #tests }
 VMJitSimdBytecode >> testStoreRegisterIntoArrayReplacesArrayElementsWithRegisterContent [
 
 	| endInstruction primitiveAddress array |

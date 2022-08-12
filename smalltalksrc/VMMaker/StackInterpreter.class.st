@@ -12941,6 +12941,17 @@ StackInterpreter >> pushFloat32ArrayToRegisterBytecode [
 ]
 
 { #category : #'simd bytecodes' }
+StackInterpreter >> pushFloat32RegisterElementBytecode [
+	| array index element |
+	array := self stackValue: 0.
+	index := objectMemory integerValueOf: (self stackValue: 1).
+	
+	element := objectMemory fetchFloat32: index ofObject: array.
+		
+	self pop: 2 thenPushFloat: element.
+]
+
+{ #category : #'simd bytecodes' }
 StackInterpreter >> pushFloat64ArrayToRegisterBytecode [
 
 	| array index reg lastRegisterIndex |

@@ -132,7 +132,8 @@ VMByteCodesTest >> pushThisContextTopFrame [
 VMByteCodesTest >> setUp [ 
 
 	super setUp.
-	self installFloat64RegisterClass
+	self installFloat64RegisterClass.
+	self installFloatClass.
 ]
 
 { #category : #'tests-push-simple' }
@@ -552,6 +553,25 @@ VMByteCodesTest >> testPushThisContextTwiceMarriesOnce [
 		newTop := interpreter stackTop.
 		 ].
 	self assert: newTop equals: previousTop.
+]
+
+{ #category : #'tests-simd' }
+VMByteCodesTest >> testPushVectorRegisterElementBytecode [
+	| index array result |
+	
+	index := memory integerObjectOf: 1.
+	array := self new32BitIndexableFromArray: #(4.0 3.0 2.0 1.0).
+		
+	stackBuilder addNewFrame
+		stack: { index. array. } .
+	stackBuilder buildStack.
+	
+	self interpret: [ interpreter pushFloat32RegisterElementBytecode ].
+	
+	result := interpreter stackTop.
+	
+	self assert: (memory floatValueOf: result) equals: 3.0.
+	
 ]
 
 { #category : #'tests-push-simple' }
