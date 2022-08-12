@@ -8,6 +8,22 @@ Class {
 	#category : #'VMMakerTests-InterpreterTests'
 }
 
+{ #category : #'tests - primitiveGreaterOrEqual' }
+VMInterpreterTests >> installFloatClass [
+
+	| classFloat |
+	classFloat := self
+		              newClassInOldSpaceWithSlots: 0
+		              instSpec: memory firstLongFormat.
+	memory setHashBitsOf: classFloat to: ClassFloatCompactIndex.
+	memory
+		storePointer: ClassFloatCompactIndex
+		ofObject: memory classTableFirstPage
+		withValue: classFloat
+
+	"This simulated classFloat class is necessary because the 32bits VM cannot instanciate boxed floats by itself"
+]
+
 { #category : #tests }
 VMInterpreterTests >> installSelector: aSelectorOop method: aMethodOop inMethodDictionary: aMethodDictionary [
 	

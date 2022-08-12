@@ -2012,6 +2012,16 @@ Cogit >> FaddS: aSize Rv: vectorRegister1 Rv: vectorRegister2 Rv: vectorRegister
 ]
 
 { #category : #'abstract instructions' }
+Cogit >> FcvtSs: aSize Sd: destinationSize Rv: sourceReg Rv: destinationReg [
+	^ self
+		  gen: FcvtSsSdIRvRv
+		  operand: aSize
+		  operand: destinationSize
+		  operand: sourceReg
+		  operand: destinationReg
+]
+
+{ #category : #'abstract instructions' }
 Cogit >> Fill32: value [
 	<inline: true>
 	<returnTypeC: #'AbstractInstruction *'>
@@ -2637,6 +2647,16 @@ Cogit >> MoveRs: dpreg1 Rs: dpreg2 [
 	<inline: true>
 	<returnTypeC: #'AbstractInstruction *'>
 	^self gen: MoveRsRs operand: dpreg1 operand: dpreg2
+]
+
+{ #category : #'abstract instructions' }
+Cogit >> MoveS: size I: sourceIndex Rv: vectorReg R: reg [
+	^ self
+		  gen: MoveSIRvR
+		  operand: size 
+		  operand: sourceIndex
+		  operand: vectorReg
+		  operand: reg
 ]
 
 { #category : #'abstract instructions' }

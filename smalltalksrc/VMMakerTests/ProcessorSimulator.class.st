@@ -624,7 +624,7 @@ ProcessorSimulator >> readFloat64Register: aRegisterID [
 ProcessorSimulator >> readRawRegister: aRegisterID size: aSize [
 
 	| registerValue |
-	registerValue := ByteArray new: aSize.
+	registerValue := ByteArray newPinned: aSize.
 	simulator register: aRegisterID value readInto: registerValue.
 	^ registerValue
 ]

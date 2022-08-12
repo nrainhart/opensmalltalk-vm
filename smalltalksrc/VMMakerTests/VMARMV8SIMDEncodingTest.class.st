@@ -55,6 +55,16 @@ VMARMV8SIMDEncodingTest >> testEncodeDupWith64BitLanes [
 ]
 
 { #category : #tests }
+VMARMV8SIMDEncodingTest >> testEncodeExtendFloat32BitLanesTo64Bit [
+
+	self compile: [ cogit FcvtSs: 32 Sd: 64 Rv: 0 Rv: 0 ].
+	
+	self
+		assert: (self armInstructionAt: 1) assemblyCodeString
+		equals: 'fcvtl	v0.2d, v0.2s'
+]
+
+{ #category : #tests }
 VMARMV8SIMDEncodingTest >> testEncodeFaddWith32BitLanes [
 
 	self compile: [ cogit FaddS: 32 Rv: 0 Rv: 1 Rv: 2 ].
@@ -122,6 +132,26 @@ VMARMV8SIMDEncodingTest >> testEncodeLd1WithOne64BitLaneRegisterAndNoOffset [
 	self
 		assert: (self armInstructionAt: 1) assemblyCodeString
 		equals: 'ld1	{ v0.2d }, [x1]'
+]
+
+{ #category : #tests }
+VMARMV8SIMDEncodingTest >> testEncodeMovSIRvRWith32BitLanes [
+
+	self compile: [ cogit MoveS: 32 I: 0 Rv: 0 R: 0 ].
+	
+	self
+		assert: (self armInstructionAt: 1) assemblyCodeString
+		equals: 'mov	w0, v0.s[0]'
+]
+
+{ #category : #tests }
+VMARMV8SIMDEncodingTest >> testEncodeMovSIRvRWith64BitLanes [
+
+	self compile: [ cogit MoveS: 64 I: 0 Rv: 0 R: 0 ].
+	
+	self
+		assert: (self armInstructionAt: 1) assemblyCodeString
+		equals: 'mov	x0, v0.d[0]'
 ]
 
 { #category : #tests }

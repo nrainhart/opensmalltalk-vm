@@ -189,10 +189,12 @@ VMSpurMemoryManagerTest >> installFloat64RegisterClass [
 
 	| registerClass |
 	registerClass := self
-		              newClassInOldSpaceWithSlots: 0
+		              newClassInOldSpaceWithSlots: 3
 		              instSpec: memory sixtyFourBitIndexableFormat.
 		
 	memory setHashBitsOf: registerClass to: ClassFloat64RegisterIndex.
+
+	memory storeInteger: 2 ofObject: registerClass withValue: 9.
 	
 	memory
 		storePointer: ClassFloat64RegisterIndex
@@ -284,6 +286,16 @@ VMSpurMemoryManagerTest >> new64BitIndexableFromArray: array [
 VMSpurMemoryManagerTest >> new64BitIndexableOfSize: aSize [
 
 	^ self newBitIndexableOfSize: aSize bytesPerSlot: 8 format: memory sixtyFourBitIndexableFormat
+]
+
+{ #category : #'helpers - methods' }
+VMSpurMemoryManagerTest >> new8BitIndexableFromArray: array [
+
+	| indexable |
+	indexable := self new8BitIndexableOfSize: array size.
+	0 to: (array size - 1) do: [ :i | 
+		memory storeByte: i ofObject: indexable withValue: (array at: i + 1) ].
+	^ indexable
 ]
 
 { #category : #helpers }

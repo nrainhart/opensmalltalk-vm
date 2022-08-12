@@ -1268,7 +1268,8 @@ CogARMv8Compiler >> computeMaximumSize [
 		[FsubSRvRvRv] -> [ ^ 4 ].
 		[FmulSRvRvRv] -> [ ^ 4 ].
 		[AddvSRvRv] -> [ ^ 4 ].
-		[MoveSIRvR] -> [ ^ 4 ].
+		[MoveSsSdRvR] -> [ ^ 4 ].
+	   [FcvtSsSdIRvRv] -> [ ^ 4 ].
 		}.
 	^0 "to keep C compiler quiet"
 
@@ -1883,6 +1884,32 @@ CogARMv8Compiler >> concretizeFaddSRvRvRv [
 		].
 
 	instruction := self addT: t q: q term1: vectorReg1 term2: vectorReg2 dest: vectorRegSum.
+
+	self machineCodeAt: 0 put: instruction.
+
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretizing }
+CogARMv8Compiler >> concretizeFcvtSsSdIRvRv [
+
+	"Will get inlined into concretizeAt: switch."
+
+	<inline: true>
+
+	| instruction sourceSize destinationReg q destinationSize sourceReg t |
+ 
+	sourceSize := operands at: 0.
+	destinationSize := operands at: 1.
+	sourceReg := operands at: 2.
+	destinationReg := operands at: 3.
+	q := 0. "TODO: support FCVTL2"
+
+	(destinationSize = 64)
+		ifTrue: [ t := 1. ]
+		ifFalse: [ (destinationSize = 32) ifTrue: [ t := 0 ] ifFalse: [self notYetImplemented]].
+
+	instruction := self fcvtT: t q: q sourceVectorReg: sourceReg destinationReg: destinationReg.
 
 	self machineCodeAt: 0 put: instruction.
 
@@ -2790,6 +2817,33 @@ CogARMv8Compiler >> concretizeMoveRsM32r [
 	^ machineCodeSize := 4
 ]
 
+{ #category : #concretizing }
+CogARMv8Compiler >> concretizeMoveSIRvR [
+	"Will get inlined into concretizeAt: switch."
+	<inline: true>
+	| indexAndSize instruction size sourceIndex sourceVectorReg destinationReg q |
+	size := operands at: 0.
+	sourceIndex := operands at: 1.
+	sourceVectorReg := operands at: 2.
+	destinationReg := operands at: 3.
+
+	size = 32
+		ifTrue: [ q := 0. indexAndSize := (sourceIndex bitAnd: 11) << 3 bitOr: 2r100 ]
+			ifFalse: [
+				size = 64
+					ifTrue: [ q := 1. indexAndSize := (sourceIndex bitAnd: 1) << 4 bitOr: 2r1000 ]
+					ifFalse: [ self notYetImplemented ] ].
+
+	instruction := self
+		movT: indexAndSize
+		q: q
+		sourceVectorReg: sourceVectorReg
+		destinationReg: destinationReg.
+	
+	self machineCodeAt: 0 put: instruction.
+	^ machineCodeSize := 4
+]
+
 { #category : #'generate machine code - concretize' }
 CogARMv8Compiler >> concretizeMoveX32rRR [
 
@@ -3575,7 +3629,8 @@ CogARMv8Compiler >> dispatchConcretize [
 		[ FsubSRvRvRv ] -> [ ^ self concretizeFsubSRvRvRv ].
 		[ FmulSRvRvRv ] -> [ ^ self concretizeFmulSRvRvRv ].
 		[ AddvSRvRv ] -> [ ^ self concretizeAddvSRvRv ].
-		[ MoveSIRvR ] -> [ ^ self concretizeMoveSsSdRvR ].
+		[ MoveSsSdRvR ] -> [ ^ self concretizeMoveSIRvR ].
+		[ FcvtSsSdIRvRv ] -> [ ^ self concretizeFcvtSsSdIRvRv ].
 		}
 ]
 
@@ -3936,6 +3991,24 @@ CogARMv8Compiler >> fcmpFType: ftype leftRegister: firstRegister rightRegister: 
 		bitOr: ((secondRegister bitAnd: 16r1f) << 16
 		bitOr: (1 << 13
 		bitOr: ((firstRegister bitAnd: 16r1f) << 5)))))
+]
+
+{ #category : #concretizing }
+CogARMv8Compiler >> fcvtT: t q: q sourceVectorReg: sourceReg destinationReg: destinationReg [
+	"
+	C7.2.74 FCVTL, FCVTL2
+	
+	FCVTL{2} <Vd>.<Ta>, <Vn>.<Tb>
+
+	Floating-point Convert to higher precision Long (vector). This instruction reads each element in a vector in the SIMD&FP source register, converts each value to double the precision of the source element using the rounding mode that is determined by the FPCR, and writes each result to the equivalent element of the vector in the SIMD&FP destination register.
+	Where the operation lengthens a 64-bit vector to a 128-bit vector, the FCVTL2 variant operates on the elements in the top 64 bits of the source register."
+	
+	^ q << 30
+		bitOr: (2r111 << 25
+		bitOr: ((t bitAnd: 1) << 22
+		bitOr: (2r100001011110 << 10
+		bitOr: ((sourceReg bitAnd: 2r11111) << 5
+		bitOr: (destinationReg bitAnd: 2r11111)))))
 ]
 
 { #category : #concretize }
@@ -5267,6 +5340,27 @@ CogARMv8Compiler >> movSize: is64Bits sourceRegisterMaybeSP: sourceRegister dest
 		bitOr: (2r0010001 << 24
 		bitOr: ((sourceRegister bitAnd: 2r11111) << 5
 		bitOr: (destinationRegister bitAnd: 2r11111)))
+]
+
+{ #category : #adding }
+CogARMv8Compiler >> movT: indexAndSize q: q sourceVectorReg: sourceVectorReg destinationReg: destinationReg [
+
+	"
+	C7.2.203 MOV (to general)
+	
+	32-bit variant
+	MOV <Wd>, <Vn>.S[<index>]
+	64-reg,UMOV-64-reg variant
+	MOV <Xd>, <Vn>.D[<index>]
+
+	Move vector element to general-purpose register. This instruction reads the unsigned integer from the source SIMD&FP register, zero-extends it to form a 32-bit or 64-bit value, and writes the result to the destination general-purpose register."
+	
+	^ q << 30
+	   bitOr: (2r1110000 << 21
+		bitOr: ((indexAndSize bitAnd: 11100) << 16
+		bitOr: (2r1111 << 10
+		bitOr: ((sourceVectorReg bitAnd: 2r11111) << 5
+		bitOr: (destinationReg bitAnd: 2r11111)))))
 ]
 
 { #category : #assembler }

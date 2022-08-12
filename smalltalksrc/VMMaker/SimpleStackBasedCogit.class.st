@@ -785,7 +785,7 @@ SimpleStackBasedCogit >> compileOpenPIC: selector numArgs: numArgs [
 			.
 	"If the method is compiled jump to its unchecked entry-point, otherwise interpret it."
 	objectRepresentation genLoadSlot: HeaderIndex sourceReg: SendNumArgsReg destReg: ClassReg.
-	jumpBCMethod := objectRepresentation genJumpImmediate: ClassReg.
+	jumpBCMethod := self genJumpImmediate: ClassReg.
 	jumpBCMethod jmpTarget: picInterpretAbort.
 	self AddCq: cmNoCheckEntryOffset R: ClassReg.
 	self JumpR: ClassReg.

@@ -38,22 +38,6 @@ VMPrimitiveTest >> fillNewSpace [
 			 classIndex: memory arrayClassIndexPun) isNotNil
 ]
 
-{ #category : #'tests - primitiveGreaterOrEqual' }
-VMPrimitiveTest >> installFloatClass [
-
-	| classFloat |
-	classFloat := self
-		              newClassInOldSpaceWithSlots: 0
-		              instSpec: memory firstLongFormat.
-	memory setHashBitsOf: classFloat to: ClassFloatCompactIndex.
-	memory
-		storePointer: ClassFloatCompactIndex
-		ofObject: memory classTableFirstPage
-		withValue: classFloat
-
-	"This simulated classFloat class is necessary because the 32bits VM cannot instanciate boxed floats by itself"
-]
-
 { #category : #'instance creation' }
 VMPrimitiveTest >> newArrayWith: aCollection [ 
 	| array |
@@ -227,6 +211,21 @@ VMPrimitiveTest >> testPrimitiveAddWithOverflowPreservesStack [
 	self assert: (interpreter stackValue: 1) equals: maxSmallInt.
 	
 	
+]
+
+{ #category : #'tests - primitiveSubtract' }
+VMPrimitiveTest >> testPrimitiveAdoptInstanceConvertsByteArrayToFloat64Array [
+
+	|array|
+	self installFloat64RegisterClass.
+	array := self new8BitIndexableFromArray: #(0 0 0 0 0 0 240 63 0 0 0 0 0 0 240 63).
+	interpreter push: (memory splObj: ClassFloat64Register).
+	interpreter push: array.
+	
+	interpreter primitiveAdoptInstance. 
+	
+	self assert: (memory fetchFloat64: 0 ofObject: array) equals: 1.0.
+	self assert: (memory fetchFloat64: 1 ofObject: array) equals: 1.0.
 ]
 
 { #category : #'tests - become' }
