@@ -2021,6 +2021,27 @@ Cogit >> FaddS: aSize Rv: vectorRegister1 Rv: vectorRegister2 Rv: vectorRegister
 ]
 
 { #category : #'abstract instructions' }
+Cogit >> FaddpS: aSize Rv: sourceReg Rv: destinationReg [
+
+	^ self
+		  gen: FaddpSRvRv
+		  operand: aSize
+		  operand: sourceReg
+		  operand: destinationReg
+]
+
+{ #category : #'abstract instructions' }
+Cogit >> FaddpS: aSize Rv: sourceReg Rv: sourceReg2 Rv: destinationReg [
+
+	^ self
+		  gen: FaddpSRvRvRv
+		  operand: aSize
+		  operand: sourceReg
+		  operand: sourceReg2
+		  operand: destinationReg
+]
+
+{ #category : #'abstract instructions' }
 Cogit >> FcvtSs: aSize Sd: destinationSize Rv: sourceReg Rv: destinationReg [
 	^ self
 		  gen: FcvtSsSdIRvRv

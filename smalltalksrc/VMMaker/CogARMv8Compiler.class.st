@@ -1289,6 +1289,8 @@ CogARMv8Compiler >> computeMaximumSize [
 		[AddvSRvRv] -> [ ^ 4 ].
 		[MoveSIRvR] -> [ ^ 4 ].
 	   [FcvtSsSdIRvRv] -> [ ^ 4 ].
+		[FaddpSRvRv] -> [ ^ 4 ].
+		[FaddpSRvRvRv] -> [ ^ 4 ].
 		}.
 	^0 "to keep C compiler quiet"
 
@@ -1927,6 +1929,55 @@ CogARMv8Compiler >> concretizeFaddSRvRvRv [
 		].
 
 	instruction := self addT: t q: q term1: vectorReg1 term2: vectorReg2 dest: vectorRegSum.
+
+	self machineCodeAt: 0 put: instruction.
+
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretizing }
+CogARMv8Compiler >> concretizeFaddpSRvRv [
+
+	"Will get inlined into concretizeAt: switch."
+
+	<inline: true>
+
+	| instruction size destinationReg sourceReg t |
+ 
+	size := operands at: 0.
+	sourceReg := operands at: 1.
+	destinationReg := operands at: 2.
+
+	(size = 64)
+		ifTrue: [ t := 1. ]
+		ifFalse: [ (size = 32) ifTrue: [ t := 0 ] ifFalse: [self notYetImplemented]].
+
+	instruction := self faddpT: t sourceReg: sourceReg destinationReg: destinationReg.
+
+	self machineCodeAt: 0 put: instruction.
+
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretizing }
+CogARMv8Compiler >> concretizeFaddpSRvRvRv [
+
+	"Will get inlined into concretizeAt: switch."
+
+	<inline: true>
+
+	| instruction size destinationReg sourceReg1 sourceReg2 t q |
+ 
+	size := operands at: 0.
+	sourceReg1 := operands at: 1.
+	sourceReg2 := operands at: 2.
+	destinationReg := operands at: 3.
+
+	(size = 64)
+		ifTrue: [ t := 1. q := 1 ]
+		ifFalse: [ (size = 32) ifTrue: [ t := 0. q := 1 ] ifFalse: [self notYetImplemented]].
+
+	instruction := self faddpT: t q: q sourceReg: sourceReg1 sourceReg2: sourceReg2 destinationReg: destinationReg.
 
 	self machineCodeAt: 0 put: instruction.
 
@@ -3674,6 +3725,8 @@ CogARMv8Compiler >> dispatchConcretize [
 		[ AddvSRvRv ] -> [ ^ self concretizeAddvSRvRv ].
 		[ MoveSIRvR ] -> [ ^ self concretizeMoveSIRvR ].
 		[ FcvtSsSdIRvRv ] -> [ ^ self concretizeFcvtSsSdIRvRv ].
+		[ FaddpSRvRv ] -> [ ^ self concretizeFaddpSRvRv ].
+		[ FaddpSRvRvRv ] -> [ ^ self concretizeFaddpSRvRvRv ]
 		}
 ]
 
@@ -4011,6 +4064,41 @@ CogARMv8Compiler >> faddSize: precision firstSourceRegister: registerA secondSou
 		bitOr: (2r101 << 11
 		bitOr: (((registerA bitAnd: 16r1f) << 5)
 		bitOr: (destinationRegister bitAnd: 16r1f))))))
+]
+
+{ #category : #concretizing }
+CogARMv8Compiler >> faddpT: t q: q sourceReg: sourceReg sourceReg2: sourceReg2 destinationReg: destinationReg [
+	"
+	C7.2.52 FADDP (vector)
+	
+	FADDP <V><d>, <Vn>.<T>
+
+	Floating-point Add Pairwise (vector). This instruction creates a vector by concatenating the vector elements of the first source SIMD&FP register after the vector elements of the second source SIMD&FP register, reads each pair of adjacent vector elements from the concatenated vector, adds each pair of values together, places the result into a vector, and writes the vector to the destination SIMD&FP register. All the values in this instruction are floating-point values."
+	
+	^ (q bitAnd: 1) << 30
+		bitOr: (2r1011100 << 23
+		bitOr: ((t bitAnd: 1) << 22
+		bitOr: (1 << 21
+		bitOr: ((sourceReg2 bitAnd: 2r11111) << 16
+		bitOr: (2r110101 << 10
+		bitOr: ((sourceReg bitAnd: 2r11111) << 5
+		bitOr: (destinationReg bitAnd: 2r11111)))))))
+]
+
+{ #category : #concretizing }
+CogARMv8Compiler >> faddpT: t sourceReg: sourceReg destinationReg: destinationReg [
+	"
+	C7.2.51 FADDP (scalar)
+	
+	FADDP <V><d>, <Vn>.<T>
+
+	Floating-point Add Pair of elements (scalar). This instruction adds two floating-point vector elements in the source SIMD&FP register and writes the scalar result into the destination SIMD&FP register."
+	
+	^ 2r0111111 << 25
+		bitOr: ((t bitAnd: 1) << 22
+		bitOr: (2r110000110110 << 10
+		bitOr: ((sourceReg bitAnd: 2r11111) << 5
+		bitOr: (destinationReg bitAnd: 2r11111))))
 ]
 
 { #category : #assembler }

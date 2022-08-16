@@ -40,6 +40,8 @@ Class {
 		'DivRsRs',
 		'DupRVr',
 		'FaddSRvRvRv',
+		'FaddpSRvRv',
+		'FaddpSRvRvRv',
 		'FcvtSsSdIRvRv',
 		'Fill32',
 		'FirstJump',
@@ -346,6 +348,8 @@ CogRTLOpcodes class >> initialize [
 						AddvSRvRv
 						MoveSIRvR
 						FcvtSsSdIRvRv
+						FaddpSRvRv
+						FaddpSRvRvRv
 
 						LastRTLCode).
 
