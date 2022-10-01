@@ -1372,6 +1372,23 @@ StackToRegisterMappingCogit >> freeAnyRegNotConflictingWith: regMask [
 ]
 
 { #category : #'mapped inline primitive generators - vectorial' }
+StackToRegisterMappingCogit >> genAddAcrossFloat32Vector [
+	| arrayReg |
+
+	objectMemory wordSize = 4 ifTrue: [ ^ EncounteredUnknownBytecode ].
+	
+	arrayReg := self allocateVectorRegForStackEntryAt: 0 notConflictingWith: 0.
+	
+	self ssTop moveToVectorReg: arrayReg.
+
+	self FaddpS: 32 Rv: arrayReg Rv: arrayReg Rv: arrayReg.
+	self FaddpS: 32 Rv: arrayReg Rv: arrayReg.
+	
+	"Returns 0 if worked"
+	^0
+]
+
+{ #category : #'mapped inline primitive generators - vectorial' }
 StackToRegisterMappingCogit >> genAddFloat32Vector [ 
 	| array1Reg array2Reg sumReg |
 
@@ -1955,7 +1972,8 @@ StackToRegisterMappingCogit >> genMappedInlinePrimitive: primIndex [
 				          ([ 5 ] -> [ self genStoreFloat32RegisterIntoArray ]).
 				          ([ 6 ] -> [ self genSubFloat64Vector ]).
 				          ([ 7 ] -> [ self genMulFloat32Vector ]).
-							 ([ 8 ] -> [ self genPushFloat32RegisterElement ]).}
+							 ([ 8 ] -> [ self genPushFloat32RegisterElement ]).
+							 ([ 9 ] -> [ self genAddAcrossFloat32Vector ]).}
 		          otherwise: [ EncounteredUnknownBytecode ].
 	"These primitives may end up calling a message send if preconditions are not met. Thus, the
 	bytecode needs to be annotated with `isMapped`, and each primitive must be annotated"
@@ -2201,7 +2219,7 @@ StackToRegisterMappingCogit >> genPushFloat32ArrayToRegister [
 
 { #category : #'mapped inline primitive generators - vectorial' }
 StackToRegisterMappingCogit >> genPushFloat32RegisterElement [
-	| vectorReg indexReg elementReg |
+	| vectorReg indexReg elementReg scratchReg1 scratchReg2 jumpFailAlloc doubleReg |
 	
 	objectMemory wordSize = 4 ifTrue: [ ^ EncounteredUnknownBytecode ].
 	
@@ -2229,6 +2247,14 @@ StackToRegisterMappingCogit >> genPushFloat32RegisterElement [
 	self FcvtSs: 32 Sd: 64 Rv: vectorReg Rv: vectorReg.
 	self MoveS: 64 I: indexReg Rv: vectorReg R: elementReg.
 	
+	self objectRepresentation genConvertBitsToSmallFloatIn: elementReg scratch: indexReg.
+	"Using vector reg as double reg. Might not be portable across all architectures"
+	"doubleReg := vectorReg.
+	self MoveR: elementReg Rd: doubleReg.
+	scratchReg1 := self allocateRegNotConflictingWith: (self registerMaskFor: indexReg).
+	scratchReg2 := self allocateRegNotConflictingWith: ((self registerMaskFor: indexReg) bitOr: (self registerMaskFor: scratchReg1)).
+	jumpFailAlloc := self objectRepresentation genAllocFloatValue: doubleReg into: elementReg scratchReg: scratchReg1 scratchReg: scratchReg2.
+	jumpFailAlloc jmpTarget: self Label."
 	"Returns 0 if worked"
 	^0
 ]

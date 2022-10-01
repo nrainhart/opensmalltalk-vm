@@ -185,6 +185,27 @@ VMSpurMemoryManagerTest >> initializeSpecialSelectors [
 ]
 
 { #category : #'tests-simd' }
+VMSpurMemoryManagerTest >> installFloat32RegisterClass [
+
+	| registerClass |
+	registerClass := self
+		              newClassInOldSpaceWithSlots: 3
+		              instSpec: memory firstLongFormat.
+		
+	memory setHashBitsOf: registerClass to: ClassFloat32RegisterIndex.
+
+	memory storeInteger: 2 ofObject: registerClass withValue: 10.
+	
+	memory
+		storePointer: ClassFloat32RegisterIndex
+		ofObject: memory classTableFirstPage
+		withValue: registerClass.
+		
+	memory splObj: ClassFloat32Register put: registerClass
+
+]
+
+{ #category : #'tests-simd' }
 VMSpurMemoryManagerTest >> installFloat64RegisterClass [
 
 	| registerClass |

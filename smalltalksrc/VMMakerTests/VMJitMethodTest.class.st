@@ -10,13 +10,13 @@ Class {
 { #category : #'as yet unclassified' }
 VMJitMethodTest >> addVector: arg1 with: arg2 intoVector: arg3 [
 
-	| tmp1 tmp2 |
-	tmp1 := 0.
-	tmp2 := 2.
-	[ tmp2 == tmp1 ] whileFalse: [ 
-		arg3.
-		tmp1 := tmp1 + 2 ].
-	^ arg3
+	     | tmp1 tmp2 |
+	     tmp1 := 0.
+	     tmp2 := 2.
+	     [ tmp2 == tmp1 ] whileFalse: [ 
+		     arg3.
+		     tmp1 := tmp1 + 2 ].
+	     ^ arg3
 ]
 
 { #category : #tests }
@@ -246,6 +246,42 @@ VMJitMethodTest >> testJitCompiledFloat64VectorAddition [
 	self assert: machineSimulator receiverRegisterValue equals: z.
 	self assert: (memory fetchFloat64: 0 ofObject: z) equals: 11.0.
 	self assert: (memory fetchFloat64: 1 ofObject: z) equals: 22.0
+]
+
+{ #category : #tests }
+VMJitMethodTest >> testJitCompiledLuhnCheck [
+
+	| callingMethod z array sum multipliers |
+	
+	array := self new32BitIndexableFromArray: #(7.0 9.0 9.0 2.0 7.0 3.0 9.0 8.0 7.0 1.0 0.0 0.0 0.0 0.0 0.0 0.0).
+	sum := self new32BitIndexableFromArray: #(0.0 0.0 0.0 0.0).
+	multipliers := self new32BitIndexableFromArray: #(1.0 2.0 1.0 2.0).
+	
+	callingMethod := self jitMethod: (ArithmeticArrayOperations lookupSelector: #luhnVectorial:withSum:andMultipliers:).
+
+	wordSize = 4 ifTrue: [ ^ self assert: callingMethod isNil ].
+
+	self initStack.
+
+	self 
+		callCogMethod: callingMethod 
+		receiver: memory nilObject 
+		arguments: {array}
+		returnAddress: callerAddress.
+	
+	z := 0.
+	self assert: machineSimulator receiverRegisterValue equals: z.
+	self assert: (memory fetchFloat32: 0 ofObject: z) equals: 11.0.
+	self assert: (memory fetchFloat32: 1 ofObject: z) equals: 22.0.
+	self assert: (memory fetchFloat32: 2 ofObject: z) equals: 33.0.
+	self assert: (memory fetchFloat32: 3 ofObject: z) equals: 44.0.
+	self assert: (memory fetchFloat32: 4 ofObject: z) equals: 55.0.
+	self assert: (memory fetchFloat32: 5 ofObject: z) equals: 66.0.
+	self assert: (memory fetchFloat32: 6 ofObject: z) equals: 77.0.
+	self assert: (memory fetchFloat32: 7 ofObject: z) equals: 88.0.		
+	
+	
+
 ]
 
 { #category : #tests }

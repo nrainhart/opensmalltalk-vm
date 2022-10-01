@@ -36,6 +36,63 @@ VMJitSimdBytecode >> setUpTrampolines [
 ]
 
 { #category : #tests }
+VMJitSimdBytecode >> testAddAcrossFloat32VectorCopiesArraySumIntoVectorRegister [
+
+	| endInstruction primitiveAddress array register |
+	
+	array := self new32BitIndexableFromArray: #(1.0 2.0 3.0 4.0).
+	arguments := { memory integerObjectOf: 0.  array }.		
+		
+	sentSelector := #+.
+	self buildStackFrame.
+	
+	primitiveAddress := self compile: [ 
+								 cogit genPushTemporaryVariable: 0.		
+								 cogit genPushTemporaryVariable: 1.
+								 cogit genPushFloat32ArrayToRegister.
+								 cogit genAddAcrossFloat32Vector.
+		                    "If the primitive fails it continues, so we need to have an instruction to detect the end"
+		                    endInstruction := cogit Stop ].
+	
+	self runFrom: primitiveAddress until: endInstruction address.
+	
+	register := machineSimulator vectorRegister0Value.
+	Float32Array adoptInstance: register.
+	self assert: (register at: 1) equals: 10.0.
+	self assert: (register at: 2) equals: 0.0.
+	self assert: (register at: 3) equals: 0.0.
+	self assert: (register at: 4) equals: 0.0.
+
+]
+
+{ #category : #tests }
+VMJitSimdBytecode >> testAddAcrossFloat32VectorPushesArraySumIntoSimulatedStack [
+
+	| endInstruction primitiveAddress array entry |
+	
+	array := self new32BitIndexableFromArray: #(1.0 2.0 3.0 4.0).
+	arguments := { memory integerObjectOf: 0.  array }.		
+		
+	sentSelector := #+.
+	self buildStackFrame.
+	
+	primitiveAddress := self compile: [ 
+								 cogit genPushTemporaryVariable: 0.		
+								 cogit genPushTemporaryVariable: 1.
+								 cogit genPushFloat32ArrayToRegister.
+								 cogit genAddAcrossFloat32Vector.
+		                    "If the primitive fails it continues, so we need to have an instruction to detect the end"
+		                    endInstruction := cogit Stop ].
+	
+	self runFrom: primitiveAddress until: endInstruction address.
+	
+	entry := cogit ssTop.
+	"The register with the result is the same as the first one"
+	self assert: (entry type) equals: SSVectorRegister.
+	self assert: (entry register) equals: 0.
+]
+
+{ #category : #tests }
 VMJitSimdBytecode >> testAddVector32CopiesArraySumIntoVectorRegister [
 
 	| endInstruction primitiveAddress array register |
@@ -213,6 +270,38 @@ VMJitSimdBytecode >> testCannotPushArrayToRegisterIfIndexIsOutOfBounds [
 ]
 
 { #category : #tests }
+VMJitSimdBytecode >> testConvertFloatBytesToFloatObject [
+
+	| endInstruction primitiveAddress array register jumpFailAlloc |
+	
+	array := self new64BitIndexableFromArray: #(3.0).
+	
+	arguments := { memory integerObjectOf: 1.  array. memory integerObjectOf: 0 }.		
+		
+	sentSelector := #-.
+	self buildStackFrame.
+	
+	primitiveAddress := self compile: [
+								 cogit MoveCq: array R: ClassReg. 
+								 cogit MoveM64: 8 r: ClassReg Rd: DPFPReg0.
+								 jumpFailAlloc := cogit objectRepresentation
+									genAllocFloatValue: DPFPReg0
+									into: SendNumArgsReg
+									scratchReg: ClassReg
+									scratchReg: TempReg.
+								 jumpFailAlloc jmpTarget: cogit Label.		
+		                    "If the primitive fails it continues, so we need to have an instruction to detect the end"
+		                    endInstruction := cogit Stop ].
+
+	self runFrom: primitiveAddress until: endInstruction address.
+
+	register := machineSimulator x25.
+	
+	self assert: (memory floatValueOf: register) equals: 3.0.
+
+]
+
+{ #category : #tests }
 VMJitSimdBytecode >> testPushArrayToRegisterCopiesArrayChunkIntoVectorRegister [
 
 	| endInstruction primitiveAddress array register |
@@ -291,10 +380,10 @@ VMJitSimdBytecode >> testPushFloat32RegisterElementBytecode [
 	
 	self assert: (entry type) equals: SSRegister.
 	self assert: (entry register) equals: 20.
-	
+
 	register := machineSimulator x20.
 	
-	self assert: (Float fromIEEE64BitWord: register) equals: 3.0.
+	self assert: (memory floatValueOf: register) equals: 3.0."TODO this works but luhnVectorial: doesn't. CONTINUE THERE (!!!)"
 
 ]
 

@@ -132,6 +132,7 @@ VMByteCodesTest >> pushThisContextTopFrame [
 VMByteCodesTest >> setUp [ 
 
 	super setUp.
+	self installFloat32RegisterClass.
 	self installFloat64RegisterClass.
 	self installFloatClass.
 ]
@@ -165,6 +166,27 @@ VMByteCodesTest >> testAccessingSenderOfContextShouldReturnContextOfSender [
 	interpreter pushActiveContextBytecode.
 	newMaybeSenderContext := interpreter instVar: SenderIndex ofContext: interpreter stackTop.
 	self assert: oldMaybeSenderContext equals: newMaybeSenderContext
+]
+
+{ #category : #'tests-simd' }
+VMByteCodesTest >> testAddAcrossVectorBytecode [
+	| array result |
+
+	array := self new32BitIndexableFromArray: (1.0 to: 4.0). 
+		
+	stackBuilder addNewFrame
+		stack: { array }.
+	stackBuilder buildStack.
+	
+	self interpret: [ interpreter addAcrossFloat32VectorBytecode ].
+	
+	result := interpreter stackTop.
+	
+	self deny: result equals: memory nilObject.
+	self assert: (memory fetchFloat32: 0 ofObject: result) equals: 10.0.
+	self assert: (memory fetchFloat32: 1 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 2 ofObject: result) equals: 0.0.
+	self assert: (memory fetchFloat32: 3 ofObject: result) equals: 0.0.
 ]
 
 { #category : #'tests-simd' }
@@ -322,6 +344,33 @@ VMByteCodesTest >> testDuplicateStackTop [
 		assert: [ self interpret: [ interpreter duplicateTopBytecode  ] ]
 		pushed: (memory integerObjectOf: 1).
 	
+]
+
+{ #category : #'tests-simd' }
+VMByteCodesTest >> testMulFloat32VectorBytecode [
+	| index v0 v1 result firstTerm size |
+	
+	index := 0.
+
+	firstTerm := 1.0 to: 4.0.
+	size := firstTerm size.
+
+	v0 := self new32BitIndexableFromArray: firstTerm.
+	v1 := self new32BitIndexableFromArray: (firstTerm collect: [:i | i * 10]). 
+		
+	stackBuilder addNewFrame
+		stack: { v0. v1 } .
+	stackBuilder buildStack.
+	
+	self interpret: [ interpreter mulFloat32VectorBytecode ].
+	
+	result := interpreter stackTop.
+	
+	self deny: result equals: memory nilObject.
+	self assert: (memory fetchFloat32: 0 ofObject: result) equals: 10.0.
+	self assert: (memory fetchFloat32: 1 ofObject: result) equals: 40.0.
+	self assert: (memory fetchFloat32: 2 ofObject: result) equals: 90.0.
+	self assert: (memory fetchFloat32: 3 ofObject: result) equals: 160.0.
 ]
 
 { #category : #'tests-push-simple' }

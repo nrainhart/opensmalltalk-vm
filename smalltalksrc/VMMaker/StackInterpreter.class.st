@@ -1885,6 +1885,22 @@ StackInterpreter >> activeProcess [
 	^objectMemory memoryActiveProcess
 ]
 
+{ #category : #'simd bytecodes' }
+StackInterpreter >> addAcrossFloat32VectorBytecode [
+	| rcv res tmp |
+	rcv := self stackValue: 0.
+
+	res := self eeInstantiateFloat32Register.
+
+	tmp := (objectMemory fetchFloat32: 0 ofObject: rcv)
+				+ (objectMemory fetchFloat32: 1 ofObject: rcv)
+				+ (objectMemory fetchFloat32: 2 ofObject: rcv)
+				+ (objectMemory fetchFloat32: 3 ofObject: rcv).
+	objectMemory storeFloat32: 0 ofObject: res withValue: tmp.
+
+	self pop: 1 thenPush: res
+]
+
 { #category : #'process primitive support' }
 StackInterpreter >> addFirstLink: proc toList: aList [ 
 	"Add the given process to the front of the given linked list
@@ -9935,6 +9951,7 @@ StackInterpreter >> mappedInlinePrimitive: primIndex [
 		[6]   -> [self subFloat64VectorBytecode].
 		[7]   -> [self mulFloat32VectorBytecode].
 		[8]   -> [self pushFloat32RegisterElementBytecode].
+		[9]		-> [self addAcrossFloat32VectorBytecode]
 	} otherwise: [self unknownInlinePrimitive]
 	
 
